@@ -52,6 +52,9 @@ resource.AddSingleFile( "materials/ui/icons/jet-pack.png" )
 resource.AddSingleFile( "materials/ui/icons/heart-inside.png" )
 resource.AddSingleFile( "materials/ui/icons/morph-ball.png" )
 resource.AddSingleFile( "materials/ui/icons/static-guard.png" )
+resource.AddSingleFile( "materials/ui/icons/fast-arrow.png" )
+resource.AddSingleFile( "materials/ui/icons/evil-bat.png" )
+resource.AddSingleFile( "materials/ui/icons/sinusoidal-beam.png" )
 
 GM.PlayerSpawnTime = {}
 local delays = {}
@@ -371,6 +374,7 @@ function DelayedUpdate()
 	local missingPvpVotes = table.Count(player.GetAll())
 	local missingMapVotes = table.Count(player.GetAll())
 	for _, ply in pairs (player.GetAll()) do
+		ply:SetAmmo( 150, "Pistol")
 		if (ply.staminaGainDelay == nil) then ply.staminaGainDelay = 0 end
 
 		if (ply.level >= MAX_LEVEL) then

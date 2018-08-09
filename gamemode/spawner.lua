@@ -1,14 +1,14 @@
+include("enemies.lua")
 
 MAX_DIST = 3000
 MIN_DIST = 1500
 MAX_SPAWNS = 20
 CHASE_PLAYERS = false
-NPCs = {}
 
 hook.Add("Initialize", "initializing_zinv", function()
 	Nodes = {}
 	found_ain = false
-	spawnedZombies = {}
+	spawnedEnemies = {}
 	ParseFile()
 end)
 
@@ -119,13 +119,13 @@ function ParseFile()
 end
 
 hook.Add( "EntityTakeDamage", "SetDamageDealt", function(ent, dmginfo)
-	if (spawnedZombies[ent:EntIndex()] && IsValid(dmginfo:GetAttacker()) && dmginfo:GetAttacker():IsPlayer()) then
-		spawnedZombies[ent:EntIndex()].totalDamage = spawnedZombies[ent:EntIndex()].totalDamage + dmginfo:GetDamage()
-		local damageDealt = spawnedZombies[ent:EntIndex()].attackers[dmginfo:GetAttacker():EntIndex()]
+	if (spawnedEnemies[ent:EntIndex()] && IsValid(dmginfo:GetAttacker()) && dmginfo:GetAttacker():IsPlayer()) then
+		spawnedEnemies[ent:EntIndex()].totalDamage = spawnedEnemies[ent:EntIndex()].totalDamage + dmginfo:GetDamage()
+		local damageDealt = spawnedEnemies[ent:EntIndex()].attackers[dmginfo:GetAttacker():EntIndex()]
 		if (damageDealt == nil) then
-			spawnedZombies[ent:EntIndex()].attackers[dmginfo:GetAttacker():EntIndex()] = dmginfo:GetDamage()
+			spawnedEnemies[ent:EntIndex()].attackers[dmginfo:GetAttacker():EntIndex()] = dmginfo:GetDamage()
 		else
-			spawnedZombies[ent:EntIndex()].attackers[dmginfo:GetAttacker():EntIndex()] = damageDealt + dmginfo:GetDamage()
+			spawnedEnemies[ent:EntIndex()].attackers[dmginfo:GetAttacker():EntIndex()] = damageDealt + dmginfo:GetDamage()
 		end
 	end
 end)
@@ -134,7 +134,7 @@ hook.Add( "OnNPCKilled", "AddExp", function(npc, attacker, inflictor )
 	net.Start( "SyncNpcDeath" )
 	net.WriteEntity( npc )
 	net.Broadcast()
-	local _npc = spawnedZombies[npc:EntIndex()]
+	local _npc = spawnedEnemies[npc:EntIndex()]
 	if _npc then
 	
 		local exp = _npc.exp * 0.1
@@ -177,25 +177,29 @@ hook.Add( "OnNPCKilled", "AddExp", function(npc, attacker, inflictor )
 				end
 			end
 		end
-		//attacker.exp = attacker.exp + exp//math.Round(npc:GetMaxHealth() * math.Rand(0.11, 0.09))
 
 		local times = math.random(1, 4)
+		local max = 160
 		for i = 0,times do
-			local chance = math.random(0, 200)
-			if (chance >= 185) then
+			local chance = math.random(0, max)
+			if (chance >= max - 15) then
 				local ent = ents.Create("weapon_smg1")
 				ent:SetPos(npc:GetPos() + npc:GetUp() * 20)
 				ent:Spawn()
-			elseif (chance >= 175) then
+			elseif (chance >= max - 25) then
 				local ent = ents.Create("weapon_pistol")
 				ent:SetPos(npc:GetPos() + npc:GetUp() * 20)
 				ent:Spawn()
-			elseif (chance >= 172) then
+			elseif (chance >= max - 28) then
 				local ent = ents.Create("weapon_ar2")
 				ent:SetPos(npc:GetPos() + npc:GetUp() * 20)
 				ent:Spawn()
-			elseif (chance >= 169) then
+			elseif (chance >= max - 31) then
 				local ent = ents.Create("weapon_crossbow")
+				ent:SetPos(npc:GetPos() + npc:GetUp() * 20)
+				ent:Spawn()
+			elseif (chance >= max - 35) then
+				local ent = ents.Create("weapon_shotgun")
 				ent:SetPos(npc:GetPos() + npc:GetUp() * 20)
 				ent:Spawn()
 			end
@@ -215,13 +219,13 @@ hook.Add( "OnNPCKilled", "AddExp", function(npc, attacker, inflictor )
 			end
 		end
 
-		spawnedZombies[npc:EntIndex()] = nil
+		spawnedEnemies[npc:EntIndex()] = nil
 	end
 end )
 
 hook.Add("EntityRemoved", "Entity_Removed_zinv", function(ent)
-	if spawnedZombies[ent:EntIndex()] then
-		spawnedZombies[ent:EntIndex()] = nil
+	if spawnedEnemies[ent:EntIndex()] then
+		spawnedEnemies[ent:EntIndex()] = nil
 	end
 end)
 
@@ -266,18 +270,6 @@ function PickRandomNPC()
 end
 
 
-/*function CanSeePlayer(ent, ply)
-	local result = false
-	if (IsValid(ent) && IsValid(ply)) then
-		local trace = {}
-		trace.start = ent:GetPos() + ent:GetUp() * 50
-		trace.endpos = ply:GetPos() + ply:GetUp() * 50
-		local traceLine = util.TraceLine(trace)
-		result = (traceLine.Entity == ply)
-	end
-	return result
-end*/
-
 function CanSeePlayers(pos)
 	local result = false
 	local hit = nil
@@ -295,21 +287,6 @@ function CanSeePlayers(pos)
 	end
 	return result
 end
-
-function CanSeePlayer(ent, ply)
-	return ent:IsLineOfSightClear( ply )
-end
-/*function CanSeePlayers(ent)
-	local result = false
-	local hit = nil
-	for k, ply in pairs (player.GetAll()) do
-		if (IsValid(ply)) then
-			if (ent:IsLineOfSightClear( ply )) then
-				result = true
-			end
-		end
-	end	
-end*/
 
 function SpawnEnemy(pos)
 	--Pick random NPC based on chance
@@ -335,7 +312,7 @@ function SpawnEnemy(pos)
 			ent:SetAngles(Angle(0, math.random(0, 360), 0))
 			ent:Spawn()
 
-			spawnedZombies[ent:EntIndex()] = {
+			spawnedEnemies[ent:EntIndex()] = {
 				exp = experience,
 				totalDamage = 0,
 				status = {},
@@ -443,10 +420,10 @@ function CleanNPCs()
 		local cycle = 0
 		for _, ply in pairs (player.GetAll()) do
 			cycle = cycle + 1
-			if (IsValid(v) && spawnedZombies[v:EntIndex()]) then
+			if (IsValid(v) && spawnedEnemies[v:EntIndex()]) then
 				inactive = inactive && (v:GetPos():Distance(ply:GetPos()) > MAX_DIST)
 				if (cycle >= maxcycle && inactive) then
-					spawnedZombies[v:EntIndex()] = nil
+					spawnedEnemies[v:EntIndex()] = nil
 					v:Remove()
 				end
 			end
@@ -461,7 +438,7 @@ function AutoSpawnNPCs()
 	MAX_SPAWNS = 15 + 15 * #player.GetAll()
 	local status, err = pcall( function()
 	local valid_nodes = {}
-	local zombies = {}
+	local enemies = {}
 
 	if table.Count(player.GetAll()) <= 0 then
 		return
@@ -480,23 +457,22 @@ function AutoSpawnNPCs()
 		print("NPCs may not spawn well on this map, please try another.")
 	end
 
-	local zombies = {}
-	for ent_index, _ in pairs(spawnedZombies) do
+	for ent_index, _ in pairs(spawnedEnemies) do
 		if !IsValid(Entity(ent_index)) then
-			spawnedZombies[ent_index] = nil
+			spawnedEnemies[ent_index] = nil
 		else
-			table.insert(zombies, Entity(ent_index))
+			table.insert(enemies, Entity(ent_index))
 		end
 	end
 
-	--Check zombie
-	for k, v in pairs(zombies) do
+	--Check enemy
+	for k, v in pairs(enemies) do
 		local closest = 99999
 		local closest_plr = NULL
-		local zombie_pos = v:GetPos()
+		local enemy_pos = v:GetPos()
 
 		for k2, v2 in pairs(player.GetAll()) do
-			local dist = zombie_pos:Distance(v2:GetPos())
+			local dist = enemy_pos:Distance(v2:GetPos())
 
 			if dist < closest then
 				closest_plr = v2
@@ -505,7 +481,7 @@ function AutoSpawnNPCs()
 		end
 
 		if closest > MAX_DIST * 1.25 then
-			table.RemoveByValue(zombies, v)
+			table.RemoveByValue(enemies, v)
 			v:Remove()
 		end
 		if v && IsValid(v) && CHASE_PLAYERS then
@@ -517,7 +493,7 @@ function AutoSpawnNPCs()
 		end
 	end
 
-	if table.Count(zombies) >= MAX_SPAWNS then
+	if table.Count(enemies) >= MAX_SPAWNS then
 		return
 	end
 
@@ -540,7 +516,7 @@ function AutoSpawnNPCs()
 			continue
 		end
 
-		for k2, v2 in pairs(zombies) do
+		for k2, v2 in pairs(enemies) do
 			local dist = v["pos"]:Distance(v2:GetPos())
 			if dist <= 100 then
 				valid = false
@@ -555,10 +531,10 @@ function AutoSpawnNPCs()
 		end
 	end
 
-	--Spawn zombies if not enough
+	--Spawn enemies if not enough
 	if table.Count(valid_nodes) > 0 then
 		for i = 0, 5 do
-			if table.Count(zombies)+i < MAX_SPAWNS then
+			if table.Count(enemies)+i < MAX_SPAWNS then
 				local pos = table.Random(valid_nodes) 
 				if pos != nil then
 					table.RemoveByValue(valid_nodes, pos)
@@ -576,323 +552,12 @@ function AutoSpawnNPCs()
 	end
 end
 
-proficiencies = {}
-local function CreateDelayedUpdates()
-	local npc = {}
-	npc = {
-		name = "Combine Cop",
-		npc = "npc_metropolice",
-		health = function() return math.random(6,8) end,
-		size = 1,
-		weapon = "ai_weapon_pistol",
-		type = "",
-		exp = 180,
-		chance = 40,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Veteran Combine Cop",
-		npc = "npc_metropolice",
-		health = function() return math.random(8,11) end,
-		size = 1,
-		weapon = "ai_weapon_smg1",
-		type = "",
-		exp = 200,
-		chance = 33,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Silver Combine Soldier",
-		npc = "npc_combine_s",
-		health = function() return math.random(16,19) end,
-		size = 1.15,
-		weapon = "ai_weapon_ar2",
-		type = "metal",
-		exp = 1000,
-		chance = 8,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Combine Recruit",
-		npc = "npc_combine_s",
-		health = function() return math.random(5,8) end,
-		size = 1,
-		weapon = "ai_weapon_smg1",
-		type = "",
-		exp = 300,
-		chance = 23,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Silver Antlion",
-		npc = "npc_antlion",
-		health = function() return math.random(17,22) end,
-		size = 1.5,
-		weapon = "",
-		type = "metal",
-		exp = 700,
-		chance = 10,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Antlion",
-		npc = "npc_antlion",
-		health = function() return math.random(9,14) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 200,
-		chance = 40,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_AVERAGE
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Fast Zombie",
-		npc = "npc_fastzombie",
-		health = function() return math.random(12,16) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 200,
-		chance = 40,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Headcrab",
-		npc = "npc_headcrab",
-		health = function() return math.random(5,8) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 90,
-		chance = 40,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_AVERAGE
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Silver Headcrab",
-		npc = "npc_headcrab",
-		health = function() return math.random(15,19) end,
-		size = 2.5,
-		weapon = "",
-		type = "metal",
-		exp = 150,
-		chance = 30,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Fast Headcrab",
-		npc = "npc_headcrab_fast",
-		health = function() return math.random(3,5) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 90,
-		chance = 30,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_AVERAGE
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Manhack",
-		npc = "npc_manhack",
-		health = function() return math.random(10,12) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 50,
-		chance = 40,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Silver Manhack",
-		npc = "npc_manhack",
-		health = function() return math.random(15,20) end,
-		size = 2.5,
-		weapon = "",
-		type = "metal",
-		exp = 120,
-		chance = 20,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Silver Fast Zombie",
-		npc = "npc_fastzombie",
-		health = function() return math.random(22,27) end,
-		size = 1.5,
-		weapon = "",
-		type = "metal",
-		exp = 500,
-		chance = 20,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-
-	table.insert( NPCs, npc )
-	npc = {
-		name = "Zombie",
-		npc = "npc_zombie",
-		health = function() return math.random(15,18) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 200,
-		chance = 20,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_GOOD
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Combine Soldier",
-		npc = "npc_combine_s",
-		health = function() return math.random(5,7) end,
-		size = 0.85,
-		weapon = "ai_weapon_ar2",
-		type = "",
-		exp = 500,
-		chance = 5,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_GOOD
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Super Combine",
-		npc = "npc_combine_s",
-		health = function() return math.random(220,250) end,
-		size = 2,
-		weapon = "ai_weapon_ar2",
-		type = "",
-		exp = 4000,
-		chance = 5,
-		boss = true,
-		proficiency = WEAPON_PROFICIENCY_GOOD
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Antlion Guard",
-		npc = "npc_antlionguard",
-		health = function() return math.random(300,350) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 5000,
-		chance = 5,
-		boss = true,
-		proficiency = WEAPON_PROFICIENCY_AVERAGE
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Vortigaunt",
-		npc = "npc_vortigaunt",
-		health = function() return math.random(25,30) end,
-		size = 1.25,
-		weapon = "",
-		type = "",
-		exp = 300,
-		chance = 15,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Silver Vortigaunt",
-		npc = "npc_vortigaunt",
-		health = function() return math.random(50,60) end,
-		size = 1.55,
-		weapon = "",
-		type = "metal",
-		exp = 600,
-		chance = 10,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_GOOD
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Medic Vortigaunt",
-		npc = "npc_vortigaunt",
-		health = function() return math.random(30,40) end,
-		size = 1,
-		weapon = "",
-		type = "medic",
-		exp = 200,
-		chance = 21,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_GOOD
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Medic Rollermine",
-		npc = "npc_rollermine",
-		health = function() return math.random(15,20) end,
-		size = 1,
-		weapon = "",
-		type = "medic",
-		exp = 100,
-		chance = 21,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_GOOD
-	}
-	table.insert( NPCs, npc )
-
-	npc = {
-		name = "Rollermine",
-		npc = "npc_rollermine",
-		health = function() return math.random(20,30) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 250,
-		chance = 21,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_POOR
-	}
-	table.insert( NPCs, npc )
-	
+local function CreateDelayedUpdates()	
 	timer.Simple( 2, function()
 		print("Timers created")
 		timer.Create( "SyncLevel", 1, 0, UpdateLevel )
 		timer.Create( "AutoSpawnTimer" , 5, 0, AutoSpawnNPCs)
 		timer.Create( "DelayedUpdate", 0.25, 0, DelayedUpdate )
-		//timer.Create( "SaveAllData", 5, 0, SaveAllData )
 		timer.Create( "CleanInactiveNPCs", 20, 0, CleanNPCs )
 	end)
 end

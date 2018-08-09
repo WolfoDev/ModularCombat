@@ -368,6 +368,44 @@ function npcmeta:ApplyPoison(timerName, timerTick, timerDuration, ply, dmg)
 	end)
 end
 
+function npcmeta:ApplyExplosion(timerName, timerTick, timerDuration, ply, dmg)
+	self.exploding = true
+	local size = 400
+	local ticksCompleted = timerDuration
+	local dur = timerDuration * timerTick
+	local getPoisonDamage = function()
+		ticksCompleted = ticksCompleted - 1
+		if (IsValid(self)) then
+			sound.Play("HL1/fvox/blip.wav", self:GetPos(), 75, 100 + (1.01 - (ticksCompleted / timerDuration)) * 100)
+			self:ShowEffect(self:LocalToWorld(self:OBBCenter()), Color(252, 119, 83), 1)
+		end
+	end
+	timer.Create(timerName, timerTick, timerDuration, getPoisonDamage)
+    timer.Simple(dur, function()
+		if (IsValid(self)) then self.exploding = false end
+
+		local sounds = {"weapons/mortar/mortar_explode1.wav", "ambient/explosions/explode_5.wav", "ambient/explosions/explode_1.wav"}
+		sound.Play(table.Random(sounds), self:GetPos())
+
+		local effectdata = EffectData()
+		effectdata:SetOrigin( self:GetPos() )
+		effectdata:SetRadius( size )
+		effectdata:SetScale( 3 )
+		util.Effect( "Explosion", effectdata )
+
+		for _, enemy in pairs (ents.FindInSphere(self:GetPos(), size)) do
+			if (enemy:IsEnemy(ply)) then
+				local dmginfo = DamageInfo()
+				dmginfo:SetDamage(dmg)
+				dmginfo:SetAttacker(ply)
+				dmginfo:SetInflictor(enemy)
+				enemy:TakeDamageInfo(dmginfo)
+				enemy:ShowEffect(enemy:LocalToWorld(enemy:OBBCenter()), Color(252, 119, 83), 30)
+			end
+		end
+	end)
+end
+
 function npcmeta:ApplyFire(timerName, timerTick, timerDuration, ply, dmg)
 	self.burned = true
 	local dur = timerDuration * timerTick

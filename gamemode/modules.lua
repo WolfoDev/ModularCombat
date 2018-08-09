@@ -665,6 +665,67 @@ MC.ThrowHarpoon = function(ply, modId, modLv)
     return result
 end
 
+MC.ThrowExplodingHarpoon = function(ply, modId, modLv)
+    local result = false
+
+    local mod = MC.modules[modId]
+    local damage = mod.upgrades[modLv] - 1
+
+    local dur = 5
+    local tick = 0.33
+    local hits = dur / tick
+    local id = CurTime()
+    local sparks = 20
+    //local singleDamage = damage / hits
+
+    if (mod != nil && modLv != nil) then
+        if (SERVER) then
+            local harpoon = ply:CreateGrenade("prop_physics", "models/props_junk/harpoon002a.mdl", true)
+            harpoon:SetCollisionGroup(COLLISION_GROUP_WORLD)
+            local trail = util.SpriteTrail(harpoon, 0, hex(mod.color), false, 10, 1, 4, 1/(15+1)*0.5, "trails/smoke.vmt")
+            hook.Add("Think", "EHarpoonHitCheck" .. id, function()
+                if (IsValid(harpoon)) then
+                    physObj = harpoon:GetPhysicsObject()
+                    for k, v in pairs (ents.FindInSphere(harpoon:GetPos(), 5)) do
+                        if (IsValid(v) && v:IsEnemy(ply) && IsValid(physObj)) then
+                            local dmginfo = DamageInfo()
+                            dmginfo:SetDamage(1)
+                            dmginfo:SetAttacker(ply)
+                            dmginfo:SetInflictor(v)
+                            v:TakeDamageInfo(dmginfo)
+
+			                ply:ShowEffect(harpoon:GetPos(), hex(mod.color), sparks)
+
+                            v:ApplyExplosion("ExplodeEntity" .. id .. "," .. v:EntIndex(), tick, hits, ply, damage)
+
+
+                            timer.Simple(dur, function()
+                                if (IsValid(v) && IsValid(harpoon)) then
+                                    harpoon:Remove()
+                                    timer.Remove("ExplodeEntity" .. id .. "," .. v:EntIndex())
+                                end
+                            end)
+
+                            sound.Play("weapons/crossbow/bolt_skewer1.wav", v:GetPos())
+                            harpoon:SetParent(v)
+                            hook.Remove("Think", "EHarpoonHitCheck" .. id)
+                        end
+                    end
+                end
+            end)
+
+            timer.Simple(2, function()
+                if (IsValid(harpoon) && !harpoon:GetParent():IsEnemy(ply)) then
+                    hook.Remove("Think", "EHarpoonHitCheck" .. id)
+                    harpoon:Remove()
+                end
+            end)
+        end
+        result = true
+    end
+    return result
+end
+
 MC.ThrowPoisonHarpoon = function(ply, modId, modLv)
     local result = false
 
@@ -1635,12 +1696,7 @@ MC.DeployRebel = function(ply, modId, modLv)
 			turret:Fire("SetReadinessHigh")
 			turret:SetNPCState(NPC_STATE_COMBAT)
 			turret:Activate()
-            /*local physObj = turret:GetPhysicsObject()
-            if (IsValid(physObj)) then
-                physObj:SetMass(physObj:GetMass() * 3)
-            end*/
-            //turret:SetMoveType(MOVETYPE_NONE)
-
+            
             for _, v in pairs (NPCs) do
                 turret:AddRelationship(v.npc .. " D_HT 99")
             end
@@ -1649,6 +1705,134 @@ MC.DeployRebel = function(ply, modId, modLv)
             timer.Create("CitizenPlayerCheck" .. entIndex, 1, 0, function()
                 if (!IsValid(turret) || !IsValid(ply)) then
                     timer.Destroy("CitizenPlayerCheck" .. entIndex)
+                else
+                    for _, v in pairs (player.GetAll()) do
+                        if (pvpmode >= 1 && v != ply) then
+                            turret:AddEntityRelationship(v, D_HT, 99)
+                        else
+                            turret:AddEntityRelationship(v, D_LI, 99)
+                        end
+                    end
+                    for _, v in pairs (ents.FindByClass("npc_*")) do
+                        if (v.minion) then
+                            turret:AddEntityRelationship(v, D_LI, 99)
+                        else
+                            turret:AddEntityRelationship(v, D_HT, 99)
+                        end
+                    end
+                end
+            end)
+        end
+        result = true
+    end
+    return result
+end
+
+MC.DeployManhack = function(ply, modId, modLv)
+    local result = false
+    local mod = MC.modules[modId]
+    local pwr = mod.upgrades[modLv]
+    local id = CurTime()
+    local health = 50
+    local sparks = 50
+    
+    local pos = ply:GetPos() + ply:GetForward() * 60
+    local toGround = util.QuickTrace(pos + ply:GetUp() * 10, ply:GetUp() * -1000, ply)
+    pos = toGround.HitPos
+    if (mod != nil && modLv != nil) then
+        if (SERVER) then
+            ply:ShowEffect(pos, hex(mod.color), sparks)
+
+            sound.Play("weapons/grenade_launcher1.wav", pos)
+            local turret = ents.Create("npc_manhack")
+			turret:SetPos(pos)
+			turret:SetAngles(Angle(0, ply:GetAngles().y, 0))
+            turret:Spawn()
+            //turret.health = health
+            turret:SetHealth(health)
+            turret:SetMaxHealth(health)
+            turret.minion = true
+            turret.owner = ply
+            turret.damage = pwr
+            turret.level = modLv
+			turret:SetCurrentWeaponProficiency(WEAPON_PROFICIENCY_GOOD)
+			turret:Fire("StartPatrolling")
+			turret:Fire("SetReadinessHigh")
+			turret:SetNPCState(NPC_STATE_COMBAT)
+			turret:Activate()
+            
+            for _, v in pairs (NPCs) do
+                turret:AddRelationship(v.npc .. " D_HT 99")
+            end
+
+            local entIndex = turret:EntIndex()
+            timer.Create("ManhackPlayerCheck" .. entIndex, 1, 0, function()
+                if (!IsValid(turret) || !IsValid(ply)) then
+                    timer.Destroy("ManhackPlayerCheck" .. entIndex)
+                else
+                    for _, v in pairs (player.GetAll()) do
+                        if (pvpmode >= 1 && v != ply) then
+                            turret:AddEntityRelationship(v, D_HT, 99)
+                        else
+                            turret:AddEntityRelationship(v, D_LI, 99)
+                        end
+                    end
+                    for _, v in pairs (ents.FindByClass("npc_*")) do
+                        if (v.minion) then
+                            turret:AddEntityRelationship(v, D_LI, 99)
+                        else
+                            turret:AddEntityRelationship(v, D_HT, 99)
+                        end
+                    end
+                end
+            end)
+        end
+        result = true
+    end
+    return result
+end
+
+MC.DeployVortigaunt = function(ply, modId, modLv)
+    local result = false
+    local mod = MC.modules[modId]
+    local pwr = mod.upgrades[modLv]
+    local id = CurTime()
+    local health = 140
+    local sparks = 50
+    
+    local pos = ply:GetPos() + ply:GetForward() * 60
+    local toGround = util.QuickTrace(pos + ply:GetUp() * 10, ply:GetUp() * -1000, ply)
+    pos = toGround.HitPos
+    if (mod != nil && modLv != nil) then
+        if (SERVER) then
+            ply:ShowEffect(pos, hex(mod.color), sparks)
+
+            sound.Play("weapons/grenade_launcher1.wav", pos)
+            local turret = ents.Create("npc_vortigaunt")
+			turret:SetPos(pos)
+			turret:SetAngles(Angle(0, ply:GetAngles().y, 0))
+            turret:Spawn()
+            //turret.health = health
+            turret:SetHealth(health)
+            turret:SetMaxHealth(health)
+            turret.minion = true
+            turret.owner = ply
+            turret.damage = pwr
+            turret.level = modLv
+			turret:SetCurrentWeaponProficiency(WEAPON_PROFICIENCY_GOOD)
+			turret:Fire("StartPatrolling")
+			turret:Fire("SetReadinessHigh")
+			turret:SetNPCState(NPC_STATE_COMBAT)
+			turret:Activate()
+            
+            for _, v in pairs (NPCs) do
+                turret:AddRelationship(v.npc .. " D_HT 99")
+            end
+
+            local entIndex = turret:EntIndex()
+            timer.Create("VortigauntPlayerCheck" .. entIndex, 1, 0, function()
+                if (!IsValid(turret) || !IsValid(ply)) then
+                    timer.Destroy("VortigauntPlayerCheck" .. entIndex)
                 else
                     for _, v in pairs (player.GetAll()) do
                         if (pvpmode >= 1 && v != ply) then
@@ -1962,7 +2146,7 @@ MC.modules = {
         description = "Throw a poisoned harpoon which <b>inflicts poison</b> on hit, dealing damage over <b>15 seconds</b>. \nPoison inflicted <b>spreads</b> across enemies. \n<i>Total damage is based on module's level.</i>",
         type = "Active - Target",
         upgrade = "Damage",
-        upgrades = {25, 28, 31, 34, 37, 40, 44, 48, 52, 56},
+        upgrades = {25, 28, 31, 34, 37, 40, 45, 50, 55, 60},
         parseUpgrade = function(value) return (value * 10) .. "" end,
         drain = 50,
         cooldown = 18,
@@ -1972,6 +2156,23 @@ MC.modules = {
         color = "#9BC53D",
         grenade = false,
         execute = MC.ThrowPoisonHarpoon
+    },
+    {
+        name = "Exploding Harpoon",
+        category = "Extra-damage",
+        description = "Throw an exploding harpoon which <b>explodes</b> after <b>5 seconds</b> dealing <b>AOE damage</b>. <i>\nDamage is based on module's level.</i>",
+        type = "Active - Target",
+        upgrade = "Damage",
+        upgrades = {20, 23, 26, 29, 32, 34, 38, 42, 46, 50},
+        parseUpgrade = function(value) return (value * 10) .. "" end,
+        drain = 50,
+        cooldown = 16,
+        casttime = 0,
+        cost = 3,
+        icon = "fast-arrow",
+        color = "#621708",
+        grenade = false,
+        execute = MC.ThrowExplodingHarpoon
     },
     {
         name = "Weakening Harpoon",
@@ -2095,15 +2296,15 @@ MC.modules = {
     {
         name = "Turret",
         category = "Minion",
-        description = "Deploy a friendly <b>turret</b> which <b>shoots</b> any enemy it sees. \n<i>Damage is based on module's level.",
+        description = "Deploy a friendly <b>static turret</b> which <b>shoots</b> any enemy it sees. \n<i>Damage is based on module's level.",
         type = "Active - Deployable",
         upgrade = "Damage",
-        upgrades = {1.2, 1.4, 1.6, 1.8, 2, 2.3, 2.6, 2.9, 3.2, 3.5},
+        upgrades = {1.5, 1.7, 1.9, 2.1, 2.4, 2.7, 3, 3.4, 3.8, 4.2},
         parseUpgrade = function(value) return (value * 10) .. "" end,
         drain = 50,
         cooldown = 60,
         casttime = 0,
-        cost = 3,
+        cost = 2,
         icon = "sentry-gun",
         color = "#C6C4C4",
         grenade = false,
@@ -2115,7 +2316,7 @@ MC.modules = {
         description = "Deploy a friendly <b>rollermine</b> which <b>bashes</b> any enemy it sees, dealing damage. \n<i>Damage is based on module's level.",
         type = "Active - Deployable",
         upgrade = "Damage",
-        upgrades = {3, 3.3, 3.6, 3.9, 4.2, 4.5, 5, 5.5, 6, 6.5},
+        upgrades = {4, 4.3, 4.6, 4.9, 5.2, 5.5, 6, 6.5, 7, 7.5},
         parseUpgrade = function(value) return (value * 10) .. "" end,
         drain = 50,
         cooldown = 60,
@@ -2142,6 +2343,40 @@ MC.modules = {
         color = "#A8FCD1",
         grenade = false,
         execute = MC.DeployRebel
+    },
+    {
+        name = "Manhack",
+        category = "Minion",
+        description = "Deploy a friendly <b>manhack</b> which <b>slashes</b> any enemy it sees. \n<i>Damage is based on module's level.",
+        type = "Active - Deployable",
+        upgrade = "Damage",
+        upgrades = {2, 2.2, 2.4, 2.6, 2.8, 3, 3.3, 3.6, 3.9, 4.2},
+        parseUpgrade = function(value) return (value * 10) .. "" end,
+        drain = 50,
+        cooldown = 60,
+        casttime = 0,
+        cost = 3,
+        icon = "evil-bat",
+        color = "#A4B3A8",
+        grenade = false,
+        execute = MC.DeployManhack
+    },
+    {
+        name = "Vortigaunt",
+        category = "Minion",
+        description = "Deploy a friendly <b>vortigaunt</b> which <b>beams</b> any enemy it sees. \n<i>Damage is based on module's level.",
+        type = "Active - Deployable",
+        upgrade = "Damage",
+        upgrades = {4, 4.3, 4.6, 4.9, 5.2, 5.5, 6, 6.5, 7, 7.5},
+        parseUpgrade = function(value) return (value * 10) .. "" end,
+        drain = 50,
+        cooldown = 60,
+        casttime = 0,
+        cost = 3,
+        icon = "sinusoidal-beam",
+        color = "#7FB486",
+        grenade = false,
+        execute = MC.DeployVortigaunt
     }
 }
 

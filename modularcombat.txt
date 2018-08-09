@@ -3,4 +3,5 @@
 	"title"		"Modular Combat"
 	"base"		"base"
 	"maps"		"^dm_"
+	"menusystem"	"1"
 }
