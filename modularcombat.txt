@@ -1,0 +1,6 @@
+"modularcombat"
+{
+	"title"		"Modular Combat"
+	"base"		"base"
+	"maps"		"^dm_"
+}
