@@ -530,7 +530,11 @@ MC.PullingMine = function(ply, modId, modLv, pos)
                     if (IsValid(v) && IsValid(physObj) && v:GetPos():Distance(pos) <= size && v:IsEnemy(ply)) then
                         local dir = (pos - v:GetPos()):GetNormalized()
                         //physObj:AddVelocity(dir * 5000)
-                        v:SetVelocity(dir * (pos:Distance(v:GetPos()) * 0.5) + v:GetUp() * 5)
+                        local vel = dir * (pos:Distance(v:GetPos()) * 0.33)
+                        if (v:GetPos():Distance(pos) >= size * 0.5) then
+                            vel = dir * (pos:Distance(v:GetPos()) * 0.55) + v:GetUp() * 5
+                        end
+                        v:SetVelocity(vel)
                     end
                 end
             end)
@@ -1471,14 +1475,14 @@ MC.JetpackThrust = function(ply, modId, modLv)
     local id = CurTime()
     local sparks = 20
     local pos = ply:GetPos()
-    if (mod != nil && modLv != nil && ply:GetMoveType() != MOVETYPE_LADDER) then
+    if (mod != nil && modLv != nil && ply:GetMoveType() != MOVETYPE_LADDER && !ply:IsOnGround()) then
         if (SERVER) then
             ply:ShowEffect(ply:GetPos(), hex(mod.color), sparks)
 
             sound.Play("weapons/grenade_launcher1.wav", pos)
-            ply:SetMoveType(MOVETYPE_FLYGRAVITY)
-            ply:SetVelocity(ply:GetUp() * 45000 * pwr)
-            timer.Simple(0.025, function()
+            ply:SetMoveType(MOVETYPE_FLY)
+            ply:SetVelocity(ply:GetUp() * 700 * pwr)
+            timer.Simple(0.05, function()
                 ply:SetMoveType(MOVETYPE_WALK)
             end)
 
@@ -2279,7 +2283,7 @@ MC.modules = {
     {
         name = "Jetpack Thrust",
         category = "Mobility",
-        description = "<b>Thrust</b> upwards in a short burst. \n<i>Thrust Power is based on module's level.",
+        description = "<b>Thrust</b> upwards in a short burst. Only works <b>in air</b>. \n<i>Thrust Power is based on module's level.",
         type = "Active - Self",
         upgrade = "Power",
         upgrades = {0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1},
