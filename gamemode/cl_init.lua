@@ -607,8 +607,10 @@ hook.Add( "HUDPaint", "DrawNPCStats", function()
 		local w = 80
 		local h = 10
 		local height = math.Clamp(ply:GetPos():Distance(ent:GetPos()) * 0.05 - 5, -5, 30);
-		local head = ent:OBBCenter()
-		head.z = ent:OBBMaxs().z + height
+		//local head = ent:OBBCenter()
+		//head.z = ent:OBBMaxs().z + height
+		local head = LerpVector(0.5, ent:OBBMaxs(), ent:OBBMins())
+		head.z = (ent:OBBMaxs():Distance(ent:OBBMins()) * 0.5) + height
 		local screenPos = (ent:LocalToWorld(head)):ToScreen()
 		local distX = (math.abs(math.Clamp(screenPos.x - ScrW() / 2, -ScrW() / 2, ScrW() / 2)) / (ScrW() / 2))
 		local distY = (math.abs(math.Clamp(screenPos.y - ScrH() / 2, -ScrH() / 2, ScrH() / 2)) / (ScrH() / 2))

@@ -8,11 +8,70 @@ local function CreateTimerInHook(timerName, timerTick, timerDuration, method)
     timer.Create(timerName, timerTick, timerDuration, method)
 end
 
-local function OnMinionDeath(ent, minion, ply)
-	if ent == minion then
-		CURRENT_MINIONS = CURRENT_MINIONS - 1
-        print(minion .. " REMOVING FROM MINION COUNT: " .. CURRENT_MINIONS .. " / " .. MAX_MINIONS)
-	end
+local function OnMinionDeath(ent, minion, delay, hookType, hookName)
+    if ent == minion then
+	    timer.Simple( delay, function()
+
+            local hooks = hook.GetTable()
+            PrintTable( hooks )
+            print(type(hooks[hookType]))
+            print(type(hooks[hookType][hookName]))
+            
+            if (type(hooks[hookType]) == "table" && type(hooks[hookType][hookName]) == "function") then
+                if not IsValid( ent ) then
+                    CURRENT_MINIONS = CURRENT_MINIONS - 1
+                    print(hookType .. " REMOVING FROM MINION COUNT: " .. CURRENT_MINIONS .. " / " .. MAX_MINIONS)
+                end
+            end
+
+            hook.Remove(hookType, hookName)
+        end)
+    end
+end
+
+local function CompleteMinionSpawn(minion, ply)
+    local entIndex = minion:EntIndex()
+
+    for _, v in pairs (NPCs) do
+        minion:AddRelationship(v.npc .. " D_HT 99")
+    end
+
+    local removeHook = "EntityRemoved" .. entIndex
+    local killedHook = "OnNPCKilled" .. entIndex
+
+    hook.Add("EntityRemoved", removeHook, function(ent)
+        OnMinionDeath(ent, minion, 0.5, "EntityRemoved", removeHook)
+        hook.Remove("OnNPCKilled", killedHook)
+    end)
+
+    hook.Add("OnNPCKilled", killedHook, function(ent)
+        OnMinionDeath(ent, minion, 1, "OnNPCKilled", killedHook)
+        hook.Remove("EntityRemoved", removeHook)
+    end)
+
+
+    timer.Create("MinionPlayerCheck" .. entIndex, 1, 0, function()
+        if (!IsValid(minion) || !IsValid(ply)) then
+            timer.Destroy("MinionPlayerCheck" .. entIndex)
+        else
+            for _, v in pairs (player.GetAll()) do
+                if (pvpmode >= 1 && v != ply) then
+                    minion:AddEntityRelationship(v, D_HT, 99)
+                else
+                    minion:AddEntityRelationship(v, D_LI, 99)
+                end
+            end
+            for _, v in pairs (ents.FindByClass("npc_*")) do
+                if (v.minion) then
+                    minion:AddEntityRelationship(v, D_LI, 99)
+                else
+                    minion:AddEntityRelationship(v, D_HT, 99)
+                end
+            end
+        end
+    end)
+
+    CURRENT_MINIONS = CURRENT_MINIONS + 1
 end
 
 MC.ApplyVulnerability = function(ply, modId, modLv)
@@ -1543,16 +1602,7 @@ MC.DeployTurret = function(ply, modId, modLv)
             end*/
             turret:SetMoveType(MOVETYPE_NONE)
 
-            for _, v in pairs (NPCs) do
-                turret:AddRelationship(v.npc .. " D_HT 99")
-            end
-
             local entIndex = turret:EntIndex()
-
-            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
-                OnMinionDeath(ent, turret, ply)
-                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
-            end)
 
             hook.Add("Think", "TurretThink" .. entIndex, function()
                 if (IsValid(turret)) then
@@ -1570,29 +1620,8 @@ MC.DeployTurret = function(ply, modId, modLv)
                     hook.Remove("Think", "TurretThink" .. entIndex)
                 end
             end)
-            
-            timer.Create("TurretPlayerCheck" .. entIndex, 1, 0, function()
-                if (!IsValid(turret) || !IsValid(ply)) then
-                    timer.Destroy("TurretPlayerCheck" .. entIndex)
-                else
-                    for _, v in pairs (player.GetAll()) do
-                        if (pvpmode >= 1 && v != ply) then
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        end
-                    end
-                    for _, v in pairs (ents.FindByClass("npc_*")) do
-                        if (v.minion) then
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        end
-                    end
-                end
-            end)
 
-            CURRENT_MINIONS = CURRENT_MINIONS + 1
+            CompleteMinionSpawn(turret, ply)
         end
 
         result = true
@@ -1638,16 +1667,7 @@ MC.DeployRollermine = function(ply, modId, modLv)
             end*/
             //turret:SetMoveType(MOVETYPE_NONE)
 
-            for _, v in pairs (NPCs) do
-                turret:AddRelationship(v.npc .. " D_HT 99")
-            end
-
             local entIndex = turret:EntIndex()
-
-            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
-                OnMinionDeath(ent, turret, ply)
-                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
-            end)
 
             hook.Add("Think", "RollermineThink" .. entIndex, function()
                 if (IsValid(turret)) then
@@ -1664,29 +1684,8 @@ MC.DeployRollermine = function(ply, modId, modLv)
                     hook.Remove("Think", "RollermineThink" .. entIndex)
                 end
             end)
-            
-            timer.Create("RollerminePlayerCheck" .. entIndex, 1, 0, function()
-                if (!IsValid(turret) || !IsValid(ply)) then
-                    timer.Destroy("RollerminePlayerCheck" .. entIndex)
-                else
-                    for _, v in pairs (player.GetAll()) do
-                        if (pvpmode >= 1 && v != ply) then
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        end
-                    end
-                    for _, v in pairs (ents.FindByClass("npc_*")) do
-                        if (v.minion) then
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        end
-                    end
-                end
-            end)
 
-            CURRENT_MINIONS = CURRENT_MINIONS + 1
+            CompleteMinionSpawn(turret, ply)
         end
 
         result = true
@@ -1729,40 +1728,8 @@ MC.DeployRebel = function(ply, modId, modLv)
 			turret:Fire("SetReadinessHigh")
 			turret:SetNPCState(NPC_STATE_COMBAT)
 			turret:Activate()
-            
-            for _, v in pairs (NPCs) do
-                turret:AddRelationship(v.npc .. " D_HT 99")
-            end
 
-            local entIndex = turret:EntIndex()
-
-            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
-                OnMinionDeath(ent, turret, ply)
-                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
-            end)
-
-            timer.Create("CitizenPlayerCheck" .. entIndex, 1, 0, function()
-                if (!IsValid(turret) || !IsValid(ply)) then
-                    timer.Destroy("CitizenPlayerCheck" .. entIndex)
-                else
-                    for _, v in pairs (player.GetAll()) do
-                        if (pvpmode >= 1 && v != ply) then
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        end
-                    end
-                    for _, v in pairs (ents.FindByClass("npc_*")) do
-                        if (v.minion) then
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        end
-                    end
-                end
-            end)
-
-            CURRENT_MINIONS = CURRENT_MINIONS + 1
+            CompleteMinionSpawn(turret, ply)
         end
 
         result = true
@@ -1802,40 +1769,8 @@ MC.DeployManhack = function(ply, modId, modLv)
 			turret:Fire("SetReadinessHigh")
 			turret:SetNPCState(NPC_STATE_COMBAT)
 			turret:Activate()
-            
-            for _, v in pairs (NPCs) do
-                turret:AddRelationship(v.npc .. " D_HT 99")
-            end
 
-            local entIndex = turret:EntIndex()
-
-            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
-                OnMinionDeath(ent, turret, ply)
-                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
-            end)
-
-            timer.Create("ManhackPlayerCheck" .. entIndex, 1, 0, function()
-                if (!IsValid(turret) || !IsValid(ply)) then
-                    timer.Destroy("ManhackPlayerCheck" .. entIndex)
-                else
-                    for _, v in pairs (player.GetAll()) do
-                        if (pvpmode >= 1 && v != ply) then
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        end
-                    end
-                    for _, v in pairs (ents.FindByClass("npc_*")) do
-                        if (v.minion) then
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        end
-                    end
-                end
-            end)
-
-            CURRENT_MINIONS = CURRENT_MINIONS + 1
+            CompleteMinionSpawn(turret, ply)
         end
 
         result = true
@@ -1875,40 +1810,8 @@ MC.DeployVortigaunt = function(ply, modId, modLv)
 			turret:Fire("SetReadinessHigh")
 			turret:SetNPCState(NPC_STATE_COMBAT)
 			turret:Activate()
-            
-            for _, v in pairs (NPCs) do
-                turret:AddRelationship(v.npc .. " D_HT 99")
-            end
 
-            local entIndex = turret:EntIndex()
-
-            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
-                OnMinionDeath(ent, turret, ply)
-                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
-            end)
-
-            timer.Create("VortigauntPlayerCheck" .. entIndex, 1, 0, function()
-                if (!IsValid(turret) || !IsValid(ply)) then
-                    timer.Destroy("VortigauntPlayerCheck" .. entIndex)
-                else
-                    for _, v in pairs (player.GetAll()) do
-                        if (pvpmode >= 1 && v != ply) then
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        end
-                    end
-                    for _, v in pairs (ents.FindByClass("npc_*")) do
-                        if (v.minion) then
-                            turret:AddEntityRelationship(v, D_LI, 99)
-                        else
-                            turret:AddEntityRelationship(v, D_HT, 99)
-                        end
-                    end
-                end
-            end)
-
-            CURRENT_MINIONS = CURRENT_MINIONS + 1
+            CompleteMinionSpawn(turret, ply)
         end
 
         result = true
@@ -2379,7 +2282,7 @@ MC.modules = {
         upgrades = {4, 4.3, 4.6, 4.9, 5.2, 5.5, 6, 6.5, 7, 7.5},
         parseUpgrade = function(value) return (value * 10) .. "" end,
         drain = 50,
-        cooldown = 60,
+        cooldown = 0,//60
         casttime = 0,
         cost = 3,
         icon = "morph-ball",
