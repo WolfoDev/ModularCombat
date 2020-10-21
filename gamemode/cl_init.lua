@@ -606,12 +606,17 @@ hook.Add( "HUDPaint", "DrawNPCStats", function()
 	for k, ent in pairs (ents.GetAll()) do
 		local w = 80
 		local h = 10
+		local entToPlyDir = (ply:GetPos() - ent:GetPos())
+		entToPlyDir:Normalize()
 		local height = math.Clamp(ply:GetPos():Distance(ent:GetPos()) * 0.05 - 5, -5, 30);
+		local width = math.Clamp(ply:GetPos():Distance(ent:GetPos()) * 0.05, 10, 500);
 		//local head = ent:OBBCenter()
 		//head.z = ent:OBBMaxs().z + height
-		local head = LerpVector(0.5, ent:OBBMaxs(), ent:OBBMins())
-		head.z = (ent:OBBMaxs():Distance(ent:OBBMins()) * 0.5) + height
-		local screenPos = (ent:LocalToWorld(head)):ToScreen()
+		local head = (ent:LocalToWorld(ent:OBBCenter()))
+		head.z = head.z + (ent:LocalToWorld(ent:OBBMaxs()):Distance(ent:LocalToWorld(ent:OBBMins())) * 0.25) + height
+		head = head - entToPlyDir:Cross(Vector(0, 0, 1)) * width
+
+		local screenPos = head:ToScreen()
 		local distX = (math.abs(math.Clamp(screenPos.x - ScrW() / 2, -ScrW() / 2, ScrW() / 2)) / (ScrW() / 2))
 		local distY = (math.abs(math.Clamp(screenPos.y - ScrH() / 2, -ScrH() / 2, ScrH() / 2)) / (ScrH() / 2))
 		if (distX <= 1 && distY <= 1 && (ent:IsNPC() || (ent:IsPlayer() && ent != ply)) && (ent:IsLineOfSightClear( ply ) || ent.boss)) then
