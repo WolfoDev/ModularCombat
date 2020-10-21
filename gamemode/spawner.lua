@@ -10,6 +10,8 @@ hook.Add("Initialize", "initializing_zinv", function()
 	found_ain = false
 	spawnedEnemies = {}
 	liveEnemiesCount = 0
+	targetCoroutine = nil
+	nodeCoroutine = nil
 	ParseFile()
 end)
 
@@ -475,33 +477,35 @@ function CleanNPCs()
 end
 
 function SetNPCsEnemy()
-	local npcs = ents.GetAll()
-	local plys = player.GetAll()
-	local plyCount = #plys
+	if (targetCoroutine != nil && coroutine.status(targetCoroutine) != "dead")
+		return;
 
-	-- No point trying to give NPCs a player when there are none
-	if ( plyCount == 0 ) then
-		return
-	end
+	targetCoroutine = coroutine.create(function()
+		local npcs = ents.GetAll()
+		local plys = player.GetAll()
+		local plyCount = #plys
 
-	-- Loop over all entities and check for NPCs
-	for i = 1, #npcs do
-		local npc = npcs[ i ]
+		-- No point trying to give NPCs a player when there are none
+		if ( plyCount == 0 ) then
+			return
+		end
 
-		-- If this entity is an NPC without an enemy, give them one
-		if ( npc:IsNPC() && spawnedEnemies[npc:EntIndex()] /*&& !IsValid( npc:GetEnemy() )*/ ) then
-			local curPly = nil			-- Closest player
-			local curPlyPos = nil		-- Position of closest player
-			local curDist = math.huge	-- Lowest distance between npc and player
-			
-			local npcPos = npc:GetPos()	-- Position of the NPC
+		-- Loop over all entities and check for NPCs
+		for i = 1, #npcs do
+			local npc = npcs[ i ]
 
-			-- Loop over all players to check their distance from the NPC
-			for i = 1, plyCount do
-				local ply = plys[ i ]
+			-- If this entity is an NPC without an enemy, give them one
+			if ( IsValid(npc) && npc:IsNPC() ) then
+				local curPly = nil			-- Closest player
+				local curPlyPos = nil		-- Position of closest player
+				local curDist = math.huge	-- Lowest distance between npc and player
+				
+				local npcPos = npc:GetPos()	-- Position of the NPC
 
-				-- Only consider players that this NPC hates
-				if ( npc:Disposition( ply ) == D_HT ) then
+				-- Loop over all players to check their distance from the NPC
+				for i = 1, plyCount do
+					local ply = plys[ i ]
+
 					-- TODO: You can optimise looking up each player's position (constant)
 					-- for every NPC by generating a table of:
 					--- key = player identifier (entity object, UserID, EntIndex, etc.)
@@ -509,34 +513,53 @@ function SetNPCsEnemy()
 					-- for the first NPC that passes to this part of the code,
 					-- then reuse it for other NPCs
 					local plyPos = ply:GetPos()
-					
-					-- Use DistToSqr for distance comparisons since
-					-- it's more efficient than Distance, and the
-					-- non-squared distance isn't needed for anything
-					local dist = npcPos:DistToSqr( plyPos )
 
-					-- If the new distance is lower, update the player information
-					if ( dist < curDist ) then
+					if (spawnedEnemies[npc:EntIndex()] && ent.type != "medic") then						
+						-- Use DistToSqr for distance comparisons since
+						-- it's more efficient than Distance, and the
+						-- non-squared distance isn't needed for anything
+						local dist = npcPos:DistToSqr( plyPos )
+
+						-- If the new distance is lower, update the player information
+						if ( dist < curDist ) then
+							curPly = ply
+							curPlyPos = plyPos
+							curDist = dist
+						end
+					elseif npc:IsMinion(ply) && not IsValid(npc:GetEnemy()) then
 						curPly = ply
 						curPlyPos = plyPos
-						curDist = dist
+					else
+						continue
 					end
 				end
+
+				-- curPly is guarenteed to be valid since this code
+				-- will only run if there is at least one player
+				//npc:SetEnemy( curPly )
+				//npc:MoveOrder( curPlyPos )
+				//npc:UpdateEnemyMemory( curPly, curPlyPos )
+
+				//local dir = (curPlyPos - npc:GetPos())
+				//dir:Normalize()
+
+				//print(tostring(npc) .. " done, moving to: " .. tostring(curPlyPos))
+
+				if curPlyPos != nil then
+					local result = npc:NavSetGoal( curPlyPos )
+					npc:SetSaveValue("m_vecLastPosition", curPlyPos)
+					npc:SetSchedule(SCHED_FORCED_GO)
+					npc:IdleSound()
+					//print(tostring(npc) .. ":NavSetGoal = " .. tostring(result))
+				end
+				
+				coroutine.wait(0.1)
 			end
-
-			-- curPly is guarenteed to be valid since this code
-			-- will only run if there is at least one player
-			//npc:SetEnemy( curPly )
-			//npc:MoveOrder( curPlyPos )
-			//npc:UpdateEnemyMemory( curPly, curPlyPos )
-
-			local dir = (curPlyPos - npc:GetPos())
-			dir:Normalize()
-
-			local result = npc:NavSetGoal( curPlyPos )
-			print("Moving NPC towards player: " .. tostring(result))
 		end
-	end
+	end)
+
+	local resume, args = coroutine.resume(targetCoroutine)
+	//print("running target coroutine " .. coroutine.status(targetCoroutine) .. " / " .. tostring(resume) .. " | " .. tostring(args))
 end
 
 function AutoSpawnNPCs()
@@ -642,11 +665,7 @@ function AutoSpawnNPCs()
 
 	--Spawn enemies if not enough
 	if table.Count(valid_nodes) > 0 then
-		co = SpawnEnemiesCoroutine(valid_nodes)
-
-		coroutine.resume(co)
-
-		print("running coroutine: " .. coroutine.status(co))
+		SpawnEnemiesAsync(valid_nodes)
 	end
 	end) 
 
@@ -655,35 +674,36 @@ function AutoSpawnNPCs()
 	end
 end
 
-function SpawnEnemiesCoroutine(nodes)
+function SpawnEnemiesAsync(nodes)
 	MAX_SPAWNS = 10 + 15 * #player.GetAll()
 
-	co = coroutine.create(function()	
+	nodeCoroutine = coroutine.create(function()	
 		for i = 0, 5 do
 			if liveEnemiesCount < MAX_SPAWNS then
 				local pos = table.Random(nodes) 
 				if pos != nil then
 					local npc = SpawnEnemy(pos)
-
-					wait(seconds(0.1))
+				
+					coroutine.wait(0.1)
 
 					if npc:IsEntityStuck() || npc:WaterLevel() >= 1 then
 						npc:Remove()
-						print(npc .. " REMOVED! WATER LEVEL: " .. npc:WaterLevel())
+						print(tostring(npc) .. " REMOVED! WATER LEVEL: " .. tostring(npc:WaterLevel()))
 					end
 
 					table.RemoveByValue(nodes, pos)
-					print("Node removed, remaining: " .. table.Count(nodes))
+					//print("Node removed, remaining: " .. tostring(table.Count(nodes)))
 				end
 			else
 				break
 			end
 
-			wait(seconds(0.5))
+			coroutine.wait(0.5)
 		end
 	end)
 
-	return co
+	local resume, args = coroutine.resume(nodeCoroutine)
+	//print("running node coroutine " .. coroutine.status(nodeCoroutine) .. " / " .. tostring(resume) .. " | " .. tostring(args))
 end
 
 local function CreateDelayedUpdates()	
@@ -693,7 +713,20 @@ local function CreateDelayedUpdates()
 		timer.Create( "AutoSpawnTimer" , 5, 0, AutoSpawnNPCs)
 		timer.Create( "DelayedUpdate", 0.25, 0, DelayedUpdate )
 		timer.Create( "CleanInactiveNPCs", 20, 0, CleanNPCs )
-		timer.Create( "SetNPCsEnemy", 5, 0, SetNPCsEnemy )
+		timer.Create( "SetNPCsEnemy", 7, 0, SetNPCsEnemy )
+		
+		hook.Add("Think", "CoroutineManagement", function()
+			if (targetCoroutine != nil && coroutine.status(targetCoroutine) == "suspended") then
+				local resume, args = coroutine.resume(targetCoroutine)
+				if (args != nil) then print("running target coroutine " .. coroutine.status(targetCoroutine) .. " / " .. tostring(resume) .. " | " .. tostring(args)) end
+			end
+
+			if (nodeCoroutine != nil && coroutine.status(nodeCoroutine) == "suspended") then
+				local resume, args = coroutine.resume(nodeCoroutine)
+				if (args != nil) then print("running target coroutine " .. coroutine.status(nodeCoroutine) .. " / " .. tostring(resume) .. " | " .. tostring(args)) end
+			end
+		end)
+
 	end)
 end
 hook.Add( "InitPostEntity", "CreateDelayedUpdates", CreateDelayedUpdates )

@@ -11,16 +11,11 @@ end
 local function OnMinionDeath(ent, minion, delay, hookType, hookName)
     if ent == minion then
 	    timer.Simple( delay, function()
-
             local hooks = hook.GetTable()
-            PrintTable( hooks )
-            print(type(hooks[hookType]))
-            print(type(hooks[hookType][hookName]))
-            
+                        
             if (type(hooks[hookType]) == "table" && type(hooks[hookType][hookName]) == "function") then
                 if not IsValid( ent ) then
                     CURRENT_MINIONS = CURRENT_MINIONS - 1
-                    print(hookType .. " REMOVING FROM MINION COUNT: " .. CURRENT_MINIONS .. " / " .. MAX_MINIONS)
                 end
             end
 

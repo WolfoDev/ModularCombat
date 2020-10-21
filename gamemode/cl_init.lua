@@ -606,6 +606,7 @@ hook.Add( "HUDPaint", "DrawNPCStats", function()
 	for k, ent in pairs (ents.GetAll()) do
 		local w = 80
 		local h = 10
+		
 		local entToPlyDir = (ply:GetPos() - ent:GetPos())
 		entToPlyDir:Normalize()
 		local height = math.Clamp(ply:GetPos():Distance(ent:GetPos()) * 0.05 - 5, -5, 30);
@@ -633,7 +634,8 @@ hook.Add( "HUDPaint", "DrawNPCStats", function()
 			if (ent.boss) then
 				lvText = "BOSS - Lv "
 				hpColor = Color( 125, 45, 90, alpha )
-				w = 120
+				w = 200
+				h = 20
 			elseif (ent:IsPlayer() && ent:Team() == ply:Team()) then
 				lvText = string.upper(ent:Nick()) .. " - Lv "
 				hpColor = Color( 0, 160, 255, alpha )

@@ -38,7 +38,7 @@ NPCs = {
 		proficiency = WEAPON_PROFICIENCY_POOR
 	},
 
-    {
+    /*{
 		name = "Silver Scanner",
 		npc = "npc_cscanner",
 		health = function() return math.random(9,15) end,
@@ -49,7 +49,7 @@ NPCs = {
 		chance = 10,
 		boss = false,
 		proficiency = WEAPON_PROFICIENCY_POOR
-	},
+	},*/
 
 	{
 		name = "Veteran Combine Cop",
@@ -220,20 +220,7 @@ NPCs = {
 		proficiency = WEAPON_PROFICIENCY_POOR
 	},
 
-	{
-		name = "Zombie",
-		npc = "npc_zombie",
-		health = function() return math.random(15,18) end,
-		size = 1,
-		weapon = "",
-		type = "",
-		exp = 200,
-		chance = 20,
-		boss = false,
-		proficiency = WEAPON_PROFICIENCY_GOOD
-	},
-
-	{
+	/*{
 		name = "Poison Zombie",
 		npc = "npc_poisonzombie",
 		health = function() return math.random(20,25) end,
@@ -244,7 +231,7 @@ NPCs = {
 		chance = 15,
 		boss = false,
 		proficiency = WEAPON_PROFICIENCY_GOOD
-	},
+	},*/
 
 	{
 		name = "Combine Soldier",
@@ -307,6 +294,32 @@ NPCs = {
 		type = "metal",
 		exp = 600,
 		chance = 10,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_GOOD
+	},
+
+	{
+		name = "Headcrab",
+		npc = "npc_headcrab",
+		health = function() return math.random(5,8) end,
+		size = 1.3,
+		weapon = "",
+		type = "medic",
+		exp = 90,
+		chance = 25,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_GOOD
+	},
+
+	{
+		name = "Medic Zombie",
+		npc = "npc_zombie",
+		health = function() return math.random(15,18) end,
+		size = 1,
+		weapon = "",
+		type = "medic",
+		exp = 200,
+		chance = 18,
 		boss = false,
 		proficiency = WEAPON_PROFICIENCY_GOOD
 	},
