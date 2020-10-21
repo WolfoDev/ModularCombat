@@ -9,6 +9,7 @@ hook.Add("Initialize", "initializing_zinv", function()
 	Nodes = {}
 	found_ain = false
 	spawnedEnemies = {}
+	liveEnemiesCount = 0
 	ParseFile()
 end)
 
@@ -219,13 +220,17 @@ hook.Add( "OnNPCKilled", "AddExp", function(npc, attacker, inflictor )
 			end
 		end
 
-		spawnedEnemies[npc:EntIndex()] = nil
+		if npc && spawnedEnemies[npc:EntIndex()] then
+			spawnedEnemies[npc:EntIndex()] = nil
+			liveEnemiesCount = liveEnemiesCount - 1
+		end
 	end
 end )
 
 hook.Add("EntityRemoved", "Entity_Removed_zinv", function(ent)
 	if spawnedEnemies[ent:EntIndex()] then
 		spawnedEnemies[ent:EntIndex()] = nil
+		liveEnemiesCount = liveEnemiesCount - 1
 	end
 end)
 
@@ -289,6 +294,7 @@ function CanSeePlayers(pos)
 end
 
 function SpawnEnemy(pos)
+	local result = NULL;
 	--Pick random NPC based on chance
 	local npcInfo, level = PickRandomNPC()
 
@@ -318,6 +324,7 @@ function SpawnEnemy(pos)
 				status = {},
 				attackers = {}
 			}
+			liveEnemiesCount = liveEnemiesCount + 1
 			
 			if (weapon != "") then ent:Give(weapon) end
 			ent.level = level
@@ -397,20 +404,27 @@ function SpawnEnemy(pos)
 			ent:Fire("SetReadinessHigh")
 			ent:SetNPCState(NPC_STATE_COMBAT)
 			ent:Activate()
+
+			result = ent;
+
 			timer.Simple(0.5, function()
 				if (IsValid(ent)) then
 					net.Start( "SyncNpcStats" )
 					net.WriteEntity( ent )
 					net.WriteUInt(level, 8)
 					net.WriteFloat(ent:Health())
-					net.WriteFloat(ent:GetMaxHealth())
+					net.WriteFloat(ent:Health())
+					net.WriteBool(ent.boss)
 					net.WriteString(ent.name)
 					net.WriteBool(ent.minion)
+					net.WriteEntity( NULL )
 					net.Broadcast()
 				end
 			end)
 		end
 	end
+
+	return result;
 end
 
 function CleanNPCs()
@@ -424,6 +438,7 @@ function CleanNPCs()
 				inactive = inactive && (v:GetPos():Distance(ply:GetPos()) > MAX_DIST)
 				if (cycle >= maxcycle && inactive) then
 					spawnedEnemies[v:EntIndex()] = nil
+					liveEnemiesCount = liveEnemiesCount - 1
 					v:Remove()
 				end
 			end
@@ -435,7 +450,7 @@ function AutoSpawnNPCs()
 	if (pvpmode >= 1) then
 		return
 	end
-	MAX_SPAWNS = 15 + 15 * #player.GetAll()
+
 	local status, err = pcall( function()
 	local valid_nodes = {}
 	local enemies = {}
@@ -448,7 +463,7 @@ function AutoSpawnNPCs()
 		ParseFile()
 	end
 
-	if !Nodes or table.Count(Nodes) < 1 then
+	if !Nodes or table.Count(Nodes) < 1 then --TODO: use navmesh.CreateNavArea( Vector corner, Vector opposite_corner )
 		print("No info_node(s) in map! NPCs will not spawn.")
 		return
 	end
@@ -460,6 +475,7 @@ function AutoSpawnNPCs()
 	for ent_index, _ in pairs(spawnedEnemies) do
 		if !IsValid(Entity(ent_index)) then
 			spawnedEnemies[ent_index] = nil
+			liveEnemiesCount = liveEnemiesCount - 1
 		else
 			table.insert(enemies, Entity(ent_index))
 		end
@@ -493,7 +509,7 @@ function AutoSpawnNPCs()
 		end
 	end
 
-	if table.Count(enemies) >= MAX_SPAWNS then
+	if liveEnemiesCount >= MAX_SPAWNS then
 		return
 	end
 
@@ -533,23 +549,47 @@ function AutoSpawnNPCs()
 
 	--Spawn enemies if not enough
 	if table.Count(valid_nodes) > 0 then
-		for i = 0, 5 do
-			if table.Count(enemies)+i < MAX_SPAWNS then
-				local pos = table.Random(valid_nodes) 
-				if pos != nil then
-					table.RemoveByValue(valid_nodes, pos)
-					SpawnEnemy(pos + Vector(0,0,30))
-				end
-			else
-				break
-			end
-		end
+		co = SpawnEnemiesCoroutine(valid_nodes)
+
+		coroutine.resume(co)
+
+		print("running coroutine: " .. coroutine.status(co))
 	end
 	end) 
 
 	if !status then
 		print(err)
 	end
+end
+
+function SpawnEnemiesCoroutine(nodes)
+	MAX_SPAWNS = 10 + 15 * #player.GetAll()
+
+	co = coroutine.create(function()	
+		for i = 0, 5 do
+			if liveEnemiesCount < MAX_SPAWNS then
+				local pos = table.Random(nodes) 
+				if pos != nil then
+					local npc = SpawnEnemy(pos)
+
+					wait(seconds(0.1))
+
+					if npc:IsEntityStuck() then
+						npc:Remove()
+					end
+
+					table.RemoveByValue(nodes, pos)
+					print("Node removed, remaining: " .. table.Count(nodes))
+				end
+			else
+				break
+			end
+
+			wait(seconds(0.5))
+		end
+	end)
+
+	return co
 end
 
 local function CreateDelayedUpdates()	

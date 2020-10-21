@@ -148,14 +148,17 @@ net.Receive("SyncNpcStats", function(len, ply)
 	local ent = net.ReadEntity()
 	local lv = net.ReadUInt(8)
 	local hp = net.ReadFloat()
+	local maxhp = net.ReadFloat()
 	local boss = net.ReadBool()
 	local name = net.ReadString()
 	local _friendly = net.ReadBool()
 	local owner = net.ReadEntity()
+
 	if (IsValid(ent)) then
 		ent.level = lv
 		ent.name = name
 		ent:SetHealth(hp)
+		ent.maxHealth = maxhp
 		ent.boss = boss
 		ent.minion = _friendly
 		ent.owner = owner
@@ -600,43 +603,43 @@ hook.Add( "HUDPaint", "DrawNPCStats", function()
 	local w = 80
 	local h = 10
 	local spacing = 0.5
-	for k, v in pairs (ents.GetAll()) do
+	for k, ent in pairs (ents.GetAll()) do
 		local w = 80
 		local h = 10
-		local height = math.Clamp(ply:GetPos():Distance(v:GetPos()) * 0.05 - 5, -5, 30);
-		local head = v:OBBCenter()
-		head.z = v:OBBMaxs().z + height
-		local screenPos = (v:LocalToWorld(head)):ToScreen()
+		local height = math.Clamp(ply:GetPos():Distance(ent:GetPos()) * 0.05 - 5, -5, 30);
+		local head = ent:OBBCenter()
+		head.z = ent:OBBMaxs().z + height
+		local screenPos = (ent:LocalToWorld(head)):ToScreen()
 		local distX = (math.abs(math.Clamp(screenPos.x - ScrW() / 2, -ScrW() / 2, ScrW() / 2)) / (ScrW() / 2))
 		local distY = (math.abs(math.Clamp(screenPos.y - ScrH() / 2, -ScrH() / 2, ScrH() / 2)) / (ScrH() / 2))
-		if (distX <= 1 && distY <= 1 && (v:IsNPC() || (v:IsPlayer() && v != ply)) && (v:IsLineOfSightClear( ply ) || v.boss)) then
+		if (distX <= 1 && distY <= 1 && (ent:IsNPC() || (ent:IsPlayer() && ent != ply)) && (ent:IsLineOfSightClear( ply ) || ent.boss)) then
 			local color = {r = 255, g = 236, b = 200}
 			local alpha = (1 - math.max(distX , distY)) * 200
 			local font = "Default"
-			local health = ((v:Health() * 100.1) / (v:GetMaxHealth() * 100.1))
-			if (v.isDead) then health = 0 end
-			if (v:IsPlayer() && !v:Alive()) then health = 0 end
+			local health = ent:GetHealthPercent();
+			if (ent.isDead) then health = 0 end
+			if (ent:IsPlayer() && !ent:Alive()) then health = 0 end
 
 			local hpColor = Color( 150, 50, 50, alpha )
-			local nick = v.name || "ENEMY"
+			local nick = ent.name || "ENEMY"
 			local lvText = string.upper(nick) .. " - Lv "
-			if (v.boss) then
+			if (ent.boss) then
 				lvText = "BOSS - Lv "
 				hpColor = Color( 125, 45, 90, alpha )
 				w = 120
-			elseif (v:IsPlayer() && v:Team() == ply:Team()) then
-				lvText = string.upper(v:Nick()) .. " - Lv "
+			elseif (ent:IsPlayer() && ent:Team() == ply:Team()) then
+				lvText = string.upper(ent:Nick()) .. " - Lv "
 				hpColor = Color( 0, 160, 255, alpha )
 				w = 120
-			elseif (v:IsPlayer()) then
+			elseif (ent:IsPlayer()) then
 				lvText = "ENEMY - Lv "
 				hpColor = Color( 150, 50, 50, alpha )
 				w = 120
-			elseif (v.minion && v:IsMinion(LocalPlayer())) then
+			elseif (ent.minion && ent:IsMinion(LocalPlayer())) then
 				lvText = "MINION - Lv "
 				hpColor = Color( 0, 160, 255, alpha )
 				w = 100
-			elseif (v.minion) then
+			elseif (ent.minion) then
 				lvText = "MINION - Lv "
 				hpColor = Color( 150, 50, 50, alpha )
 				w = 100
@@ -646,10 +649,10 @@ hook.Add( "HUDPaint", "DrawNPCStats", function()
 			draw.RoundedBox( 4, screenPos.x - w/2, screenPos.y + h / 2, health * w, h, hpColor )
 
 			surface.SetFont(font)
-			local textw, texth = surface.GetTextSize(lvText .. (v.level || 1))
+			local textw, texth = surface.GetTextSize(lvText .. (ent.level || 1))
 			
 			draw.RoundedBox( 4, screenPos.x - w/2, screenPos.y - texth / 2, textw, texth, Color( 50, 50, 50, alpha ) )
-			draw.DrawText( lvText .. (v.level || 1), font, screenPos.x - w/2, screenPos.y - texth / 2, Color( color.r, color.g, color.b, alpha ), TEXT_ALIGN_LEFT )
+			draw.DrawText( lvText .. (ent.level || 1), font, screenPos.x - w/2, screenPos.y - texth / 2, Color( color.r, color.g, color.b, alpha ), TEXT_ALIGN_LEFT )
 		end
 	end
 end)

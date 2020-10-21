@@ -335,8 +335,33 @@ function npcmeta:IsEnemy(ply)
 	return (self:IsNPC() && !self:IsMinion(ply)) || (self:IsPlayer() && self:Team() != ply:Team()) 
 end
 
+function npcmeta:IsEntityStuck()
+	local boxMins, boxMaxs = self:GetCollisionBounds()
+	//local difference = pos - self:GetPos()
+	//local worldBoxMins = self:LocalToWorld(boxMins) - difference
+	//local worldBoxMins = self:LocalToWorld(boxMaxs) - difference
+	local result = false
+	local entsInBox = ents.FindInBox(self:LocalToWorld(boxMins), self:LocalToWorld(boxMaxs))
+
+	for k, v in pairs(entsInBox) do
+		if (v:IsNPC() || v:IsPlayer()) && v != self then
+			result = true
+		end
+	end
+
+	return result
+end
+
 function npcmeta:IsMinion(ply)
 	return self:IsNPC() && self.minion && (IsValid(self.owner) && self.owner:Team() == ply:Team())
+end
+
+function npcmeta:GetHealthPercent()
+	if (!self.maxHealth) then self.maxHealth = self:GetMaxHealth() end
+
+	if (self.maxHealth < self:Health()) then self.maxHealth = self:Health() end
+
+	return ((self:Health() * 100.1) / (self.maxHealth * 100.1))
 end
 
 function npcmeta:ApplyPoison(timerName, timerTick, timerDuration, ply, dmg)
