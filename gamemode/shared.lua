@@ -346,6 +346,7 @@ function npcmeta:IsEntityStuck()
 	for k, v in pairs(entsInBox) do
 		if (v:IsNPC() || v:IsPlayer()) && v != self then
 			result = true
+			print(self .. " STUCK! CAUSE: " .. v)
 		end
 	end
 

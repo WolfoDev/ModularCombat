@@ -565,7 +565,7 @@ end
 -----------------------------------------------------------]]
 function GM:DoPlayerDeath( ply, attacker, dmginfo )
 
-	if (attacker:IsPlayer()) then
+	if (attacker:IsPlayer() && attacker != ply) then
 		local expGain = 500
 		if (attacker.level > ply.level) then
 			expGain = 250

@@ -1,8 +1,18 @@
 MC = {}
 MC.categories = { "Stats", "Extra-damage", "Utilities" }
 
+MAX_MINIONS = 3
+CURRENT_MINIONS = 0
+
 local function CreateTimerInHook(timerName, timerTick, timerDuration, method)
     timer.Create(timerName, timerTick, timerDuration, method)
+end
+
+local function OnMinionDeath(ent, minion, ply)
+	if ent == minion then
+		CURRENT_MINIONS = CURRENT_MINIONS - 1
+        print(minion .. " REMOVING FROM MINION COUNT: " .. CURRENT_MINIONS .. " / " .. MAX_MINIONS)
+	end
 end
 
 MC.ApplyVulnerability = function(ply, modId, modLv)
@@ -1500,13 +1510,14 @@ MC.DeployTurret = function(ply, modId, modLv)
     local mod = MC.modules[modId]
     local pwr = mod.upgrades[modLv]
     local id = CurTime()
-    local health = 120
+    local health = 60
     local sparks = 50
     
     local pos = ply:GetPos() + ply:GetForward() * 60
     local toGround = util.QuickTrace(pos + ply:GetUp() * 10, ply:GetUp() * -1000, ply)
     pos = toGround.HitPos
-    if (mod != nil && modLv != nil) then
+
+    if (mod != nil && modLv != nil && CURRENT_MINIONS < MAX_MINIONS) then
         if (SERVER) then
             ply:ShowEffect(pos, hex(mod.color), sparks)
 
@@ -1538,16 +1549,22 @@ MC.DeployTurret = function(ply, modId, modLv)
 
             local entIndex = turret:EntIndex()
 
+            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
+                OnMinionDeath(ent, turret, ply)
+                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
+            end)
+
             hook.Add("Think", "TurretThink" .. entIndex, function()
                 if (IsValid(turret)) then
                     if (turret.health) then turret:SetHealth(turret.health) end
-                    if (turret:Health() <= 0) then
+                    if (turret:Health() <= 1) then
                         local effectdata = EffectData()
                         effectdata:SetOrigin( turret:GetPos() )
                         effectdata:SetRadius( 50 )
                         effectdata:SetScale( 1 )
                         util.Effect( "Explosion", effectdata )
                         turret:Remove()
+                        hook.Remove("Think", "TurretThink" .. entIndex)
                     end
                 else
                     hook.Remove("Think", "TurretThink" .. entIndex)
@@ -1574,9 +1591,13 @@ MC.DeployTurret = function(ply, modId, modLv)
                     end
                 end
             end)
+
+            CURRENT_MINIONS = CURRENT_MINIONS + 1
         end
+
         result = true
     end
+
     return result
 end
 
@@ -1591,7 +1612,7 @@ MC.DeployRollermine = function(ply, modId, modLv)
     local pos = ply:GetPos() + ply:GetForward() * 60
     local toGround = util.QuickTrace(pos + ply:GetUp() * 10, ply:GetUp() * -1000, ply)
     pos = toGround.HitPos
-    if (mod != nil && modLv != nil) then
+    if (mod != nil && modLv != nil && CURRENT_MINIONS < MAX_MINIONS) then
         if (SERVER) then
             ply:ShowEffect(pos, hex(mod.color), sparks)
 
@@ -1622,6 +1643,11 @@ MC.DeployRollermine = function(ply, modId, modLv)
             end
 
             local entIndex = turret:EntIndex()
+
+            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
+                OnMinionDeath(ent, turret, ply)
+                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
+            end)
 
             hook.Add("Think", "RollermineThink" .. entIndex, function()
                 if (IsValid(turret)) then
@@ -1659,7 +1685,10 @@ MC.DeployRollermine = function(ply, modId, modLv)
                     end
                 end
             end)
+
+            CURRENT_MINIONS = CURRENT_MINIONS + 1
         end
+
         result = true
     end
     return result
@@ -1677,7 +1706,7 @@ MC.DeployRebel = function(ply, modId, modLv)
     local pos = ply:GetPos() + ply:GetForward() * 60
     local toGround = util.QuickTrace(pos + ply:GetUp() * 10, ply:GetUp() * -1000, ply)
     pos = toGround.HitPos
-    if (mod != nil && modLv != nil) then
+    if (mod != nil && modLv != nil && CURRENT_MINIONS < MAX_MINIONS) then
         if (SERVER) then
             ply:ShowEffect(pos, hex(mod.color), sparks)
 
@@ -1706,6 +1735,12 @@ MC.DeployRebel = function(ply, modId, modLv)
             end
 
             local entIndex = turret:EntIndex()
+
+            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
+                OnMinionDeath(ent, turret, ply)
+                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
+            end)
+
             timer.Create("CitizenPlayerCheck" .. entIndex, 1, 0, function()
                 if (!IsValid(turret) || !IsValid(ply)) then
                     timer.Destroy("CitizenPlayerCheck" .. entIndex)
@@ -1726,7 +1761,10 @@ MC.DeployRebel = function(ply, modId, modLv)
                     end
                 end
             end)
+
+            CURRENT_MINIONS = CURRENT_MINIONS + 1
         end
+
         result = true
     end
     return result
@@ -1743,7 +1781,7 @@ MC.DeployManhack = function(ply, modId, modLv)
     local pos = ply:GetPos() + ply:GetForward() * 60
     local toGround = util.QuickTrace(pos + ply:GetUp() * 10, ply:GetUp() * -1000, ply)
     pos = toGround.HitPos
-    if (mod != nil && modLv != nil) then
+    if (mod != nil && modLv != nil && CURRENT_MINIONS < MAX_MINIONS) then
         if (SERVER) then
             ply:ShowEffect(pos, hex(mod.color), sparks)
 
@@ -1770,6 +1808,12 @@ MC.DeployManhack = function(ply, modId, modLv)
             end
 
             local entIndex = turret:EntIndex()
+
+            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
+                OnMinionDeath(ent, turret, ply)
+                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
+            end)
+
             timer.Create("ManhackPlayerCheck" .. entIndex, 1, 0, function()
                 if (!IsValid(turret) || !IsValid(ply)) then
                     timer.Destroy("ManhackPlayerCheck" .. entIndex)
@@ -1790,7 +1834,10 @@ MC.DeployManhack = function(ply, modId, modLv)
                     end
                 end
             end)
+
+            CURRENT_MINIONS = CURRENT_MINIONS + 1
         end
+
         result = true
     end
     return result
@@ -1807,7 +1854,7 @@ MC.DeployVortigaunt = function(ply, modId, modLv)
     local pos = ply:GetPos() + ply:GetForward() * 60
     local toGround = util.QuickTrace(pos + ply:GetUp() * 10, ply:GetUp() * -1000, ply)
     pos = toGround.HitPos
-    if (mod != nil && modLv != nil) then
+    if (mod != nil && modLv != nil && CURRENT_MINIONS < MAX_MINIONS) then
         if (SERVER) then
             ply:ShowEffect(pos, hex(mod.color), sparks)
 
@@ -1834,6 +1881,12 @@ MC.DeployVortigaunt = function(ply, modId, modLv)
             end
 
             local entIndex = turret:EntIndex()
+
+            hook.Add("EntityRemoved", "EntityRemoved" .. entIndex, function(ent)
+                OnMinionDeath(ent, turret, ply)
+                hook.Remove("EntityRemoved", "EntityRemoved" .. entIndex)
+            end)
+
             timer.Create("VortigauntPlayerCheck" .. entIndex, 1, 0, function()
                 if (!IsValid(turret) || !IsValid(ply)) then
                     timer.Destroy("VortigauntPlayerCheck" .. entIndex)
@@ -1854,7 +1907,10 @@ MC.DeployVortigaunt = function(ply, modId, modLv)
                     end
                 end
             end)
+
+            CURRENT_MINIONS = CURRENT_MINIONS + 1
         end
+
         result = true
     end
     return result
@@ -2300,7 +2356,7 @@ MC.modules = {
     {
         name = "Turret",
         category = "Minion",
-        description = "Deploy a friendly <b>static turret</b> which <b>shoots</b> any enemy it sees. \n<i>Damage is based on module's level.",
+        description = "Deploy a friendly <b>static turret</b> which <b>shoots</b> any enemy it sees. \n<i>Damage is based on module's level.</i> \nMaximum minions: " .. MAX_MINIONS,
         type = "Active - Deployable",
         upgrade = "Damage",
         upgrades = {1.5, 1.7, 1.9, 2.1, 2.4, 2.7, 3, 3.4, 3.8, 4.2},
@@ -2317,7 +2373,7 @@ MC.modules = {
     {
         name = "Rollermine",
         category = "Minion",
-        description = "Deploy a friendly <b>rollermine</b> which <b>bashes</b> any enemy it sees, dealing damage. \n<i>Damage is based on module's level.",
+        description = "Deploy a friendly <b>rollermine</b> which <b>bashes</b> any enemy it sees, dealing damage. \n<i>Damage is based on module's level.</i> \nMaximum minions: " .. MAX_MINIONS,
         type = "Active - Deployable",
         upgrade = "Damage",
         upgrades = {4, 4.3, 4.6, 4.9, 5.2, 5.5, 6, 6.5, 7, 7.5},
@@ -2334,7 +2390,7 @@ MC.modules = {
     {
         name = "Rebel",
         category = "Minion",
-        description = "Deploy a friendly <b>citizen</b> which <b>shoots</b> any enemy it sees. \n<i>Damage is based on module's level.",
+        description = "Deploy a friendly <b>citizen</b> which <b>shoots</b> any enemy it sees. \n<i>Damage is based on module's level.</i> \nMaximum minions: " .. MAX_MINIONS,
         type = "Active - Deployable",
         upgrade = "Damage",
         upgrades = {1, 1.2, 1.4, 1.6, 1.8, 2, 2.3, 2.6, 2.9, 3.2},
@@ -2351,7 +2407,7 @@ MC.modules = {
     {
         name = "Manhack",
         category = "Minion",
-        description = "Deploy a friendly <b>manhack</b> which <b>slashes</b> any enemy it sees. \n<i>Damage is based on module's level.",
+        description = "Deploy a friendly <b>manhack</b> which <b>slashes</b> any enemy it sees. \n<i>Damage is based on module's level.</i> \nMaximum minions: " .. MAX_MINIONS,
         type = "Active - Deployable",
         upgrade = "Damage",
         upgrades = {2, 2.2, 2.4, 2.6, 2.8, 3, 3.3, 3.6, 3.9, 4.2},
@@ -2368,7 +2424,7 @@ MC.modules = {
     {
         name = "Vortigaunt",
         category = "Minion",
-        description = "Deploy a friendly <b>vortigaunt</b> which <b>beams</b> any enemy it sees. \n<i>Damage is based on module's level.",
+        description = "Deploy a friendly <b>vortigaunt</b> which <b>beams</b> any enemy it sees. \n<i>Damage is based on module's level.</i> \nMaximum minions: " .. MAX_MINIONS,
         type = "Active - Deployable",
         upgrade = "Damage",
         upgrades = {4, 4.3, 4.6, 4.9, 5.2, 5.5, 6, 6.5, 7, 7.5},

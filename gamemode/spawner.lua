@@ -604,6 +604,7 @@ function SpawnEnemiesCoroutine(nodes)
 
 					if npc:IsEntityStuck() || npc:WaterLevel() >= 1 then
 						npc:Remove()
+						print(npc .. " REMOVED! WATER LEVEL: " .. npc:WaterLevel())
 					end
 
 					table.RemoveByValue(nodes, pos)
