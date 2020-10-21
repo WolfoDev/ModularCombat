@@ -568,7 +568,7 @@ function AutoSpawnNPCs()
 			end
 		end
 
-		valid = valid && !CanSeePlayers(v["pos"] + Vector(0, 0, 50))
+		valid = valid && !CanSeePlayers(v["pos"])
 
 		if valid then
 			table.insert(valid_nodes, v["pos"])
