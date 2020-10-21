@@ -379,7 +379,7 @@ function SpawnEnemy(pos)
 			end
 			
 			ent:SetCurrentWeaponProficiency(prof)
-			if (npc == "npc_vortigaunt") then
+			if (npc == "npc_vortigaunt" || npc == "npc_strider" || npc == "npc_helicopter") then
 				ent:SetCurrentWeaponProficiency(WEAPON_PROFICIENCY_POOR)
 			end
 			if (npc == "npc_rollermine") then
@@ -396,6 +396,34 @@ function SpawnEnemy(pos)
 							effectdata:SetScale( 1 )
 							util.Effect( "Explosion", effectdata )
 							ent:Remove()
+						end
+					end
+				end)
+			end
+			if (npc == "npc_strider") then
+				ent.health = ent:GetMaxHealth()
+				timer.Create("StriderHealthCheck" .. entIndex, 0.05, 0, function()
+					if (!IsValid(ent)) then
+						timer.Remove("StriderHealthCheck" .. entIndex)
+					else
+                    	if (ent.health) then ent:SetHealth(ent.health) end
+						if (ent:Health() <= 0) then
+							//ent:Kill()
+						end
+					end
+				end)
+				local toGround = util.QuickTrace(ent:GetPos() + ent:GetUp() * 10, ent:GetUp() * -1000, ent)
+				ent:SetPos(toGround.HitPos)
+			end
+			if (npc == "npc_helicopter") then
+				ent.health = ent:GetMaxHealth()
+				timer.Create("HelicopterHealthCheck" .. entIndex, 0.05, 0, function()
+					if (!IsValid(ent)) then
+						timer.Remove("HelicopterHealthCheck" .. entIndex)
+					else
+                    	if (ent.health) then ent:SetHealth(ent.health) end
+						if (ent:Health() <= 0 && IsValid(ent)) then
+							ent:Kill()
 						end
 					end
 				end)

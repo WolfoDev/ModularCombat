@@ -565,6 +565,19 @@ end
 -----------------------------------------------------------]]
 function GM:DoPlayerDeath( ply, attacker, dmginfo )
 
+	if (attacker:IsPlayer()) then
+		local expGain = 500
+		if (attacker.level > ply.level) then
+			expGain = 250
+		elseif (attacker.level < ply.level) then
+			expGain = 850
+		end
+		attacker.exp = attacker.exp + 500
+	end
+
+	ply.exp = ply.exp - 250
+	if (ply.exp < 0) then ply.exp = 0 end
+
 	ply:CreateRagdoll()
 	
 	ply:AddDeaths( 1 )
@@ -657,7 +670,7 @@ function GM:EntityTakeDamage( ent, dmginfo )
 			dmginfo:SetDamage(0)
 		end
 
-		if (ent.immortal) then
+		if (ent.immortal ) then
 			dmginfo:SetDamageForce(Vector(0, 0, 0))
 			dmginfo:SetDamage(0)
 		end
@@ -676,6 +689,9 @@ function GM:EntityTakeDamage( ent, dmginfo )
 		if (ent.vulnerable) then
 			dmginfo:SetDamage(dmginfo:GetDamage() * 1.25)
 		end
+		if ((ent.type || "") == "metal") then
+			dmginfo:SetDamageForce(Vector(0, 0, 0))
+		end
 		local modPwr = atk:GetModuleUpgrade(MC.modulesByName.criticalHits)
 		local criticalChance = math.random(0, 100)
 		if (modPwr > 0 && criticalChance <= modPwr * 100 && dmginfo:GetInflictor() == atk) then
@@ -684,6 +700,7 @@ function GM:EntityTakeDamage( ent, dmginfo )
 			net.WriteVector(dmginfo:GetDamagePosition())
 			net.Broadcast()
 			dmginfo:SetReportedPosition(Vector(2, 0, 0))
+			sound.Play("weapons/crossbow/hitbod" .. math.random(1, 2) .. ".wav", atk:GetPos())
 		end
 		if (dmginfo:IsBulletDamage()) then
 			local modPwr = atk:GetModuleUpgrade(MC.modulesByName.increasedRangedDmg)

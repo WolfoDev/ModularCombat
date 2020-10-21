@@ -12,6 +12,45 @@ NPCs = {
 		proficiency = WEAPON_PROFICIENCY_POOR
 	},
 
+    {
+		name = "Silver Combine Cop",
+		npc = "npc_metropolice",
+		health = function() return math.random(15,22) end,
+		size = 1.5,
+		weapon = "ai_weapon_pistol",
+		type = "metal",
+		exp = 380,
+		chance = 15,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_POOR
+	},
+
+    {
+		name = "Scanner",
+		npc = "npc_cscanner",
+		health = function() return math.random(5,10) end,
+		size = 1,
+		weapon = "",
+		type = "",
+		exp = 50,
+		chance = 15,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_POOR
+	},
+
+    {
+		name = "Silver Scanner",
+		npc = "npc_cscanner",
+		health = function() return math.random(9,15) end,
+		size = 1.33,
+		weapon = "",
+		type = "metal",
+		exp = 65,
+		chance = 10,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_POOR
+	},
+
 	{
 		name = "Veteran Combine Cop",
 		npc = "npc_metropolice",
@@ -44,6 +83,19 @@ NPCs = {
 		health = function() return math.random(5,8) end,
 		size = 1,
 		weapon = "ai_weapon_smg1",
+		type = "",
+		exp = 300,
+		chance = 23,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_POOR
+	},
+
+	{
+		name = "Combine Rogue",
+		npc = "npc_combine_s",
+		health = function() return math.random(5,8) end,
+		size = 1,
+		weapon = "ai_weapon_shotgun",
 		type = "",
 		exp = 300,
 		chance = 23,
@@ -150,7 +202,7 @@ NPCs = {
 		weapon = "",
 		type = "metal",
 		exp = 120,
-		chance = 20,
+		chance = 2099999,
 		boss = false,
 		proficiency = WEAPON_PROFICIENCY_POOR
 	},
@@ -177,6 +229,19 @@ NPCs = {
 		type = "",
 		exp = 200,
 		chance = 20,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_GOOD
+	},
+
+	{
+		name = "Poison Zombie",
+		npc = "npc_poisonzombie",
+		health = function() return math.random(20,25) end,
+		size = 1,
+		weapon = "",
+		type = "",
+		exp = 400,
+		chance = 15,
 		boss = false,
 		proficiency = WEAPON_PROFICIENCY_GOOD
 	},
@@ -280,8 +345,47 @@ NPCs = {
 		weapon = "",
 		type = "",
 		exp = 250,
-		chance = 21,
+		chance = 14,
 		boss = false,
 		proficiency = WEAPON_PROFICIENCY_POOR
-	}
+	},
+
+	{
+		name = "Silver Rollermine",
+		npc = "npc_rollermine",
+		health = function() return math.random(30, 45) end,
+		size = 1,
+		weapon = "",
+		type = "metal",
+		exp = 250,
+		chance = 23,
+		boss = false,
+		proficiency = WEAPON_PROFICIENCY_POOR
+	},
+
+	{
+		name = "Strider",
+		npc = "npc_strider",
+		health = function() return math.random(500,550) end,
+		size = 1,
+		weapon = "",
+		type = "",
+		exp = 5000,
+		chance = 5,
+		boss = true,
+		proficiency = WEAPON_PROFICIENCY_POOR
+	},
+
+	{
+		name = "Combine Helicopter",
+		npc = "npc_helicopter",
+		health = function() return math.random(300,350) end,
+		size = 1,
+		weapon = "",
+		type = "",
+		exp = 5000,
+		chance = 3,
+		boss = true,
+		proficiency = WEAPON_PROFICIENCY_POOR
+	},
 }
