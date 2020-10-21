@@ -574,7 +574,7 @@ function SpawnEnemiesCoroutine(nodes)
 
 					wait(seconds(0.1))
 
-					if npc:IsEntityStuck() then
+					if npc:IsEntityStuck() || npc:WaterLevel() >= 1 then
 						npc:Remove()
 					end
 
