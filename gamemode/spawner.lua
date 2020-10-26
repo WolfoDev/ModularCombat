@@ -1,17 +1,19 @@
 include("enemies.lua")
 
 MAX_DIST = 3000
-MIN_DIST = 1500
+MIN_DIST = 1000
 MAX_SPAWNS = 20
-CHASE_PLAYERS = false
+CHASE_PLAYERS = true
 
 hook.Add("Initialize", "initializing_zinv", function()
 	Nodes = {}
 	found_ain = false
+	parsed_wnav = false
 	spawnedEnemies = {}
 	liveEnemiesCount = 0
 	targetCoroutine = nil
 	nodeCoroutine = nil
+
 	ParseFile()
 end)
 
@@ -19,7 +21,7 @@ hook.Add("EntityKeyValue", "newkeyval_zinv", function(ent)
 	if ent:GetClass() == "info_player_teamspawn" then
 		local valid = true
 		for k,v in pairs(Nodes) do
-			if v["pos"] == ent:GetPos() then
+			if v == ent:GetPos() then
 				valid = false
 			end
 		end
@@ -37,7 +39,7 @@ hook.Add("EntityKeyValue", "newkeyval_zinv", function(ent)
 				link = {},
 				numlinks = 0
 			}
-			table.insert(Nodes, node)
+			table.insert(Nodes, node.pos) //Nodes used to have all the info, but we only need position
 		end
 	end
 end)
@@ -59,6 +61,15 @@ end
 local function ReadInt(f) return toInt(f:Read(SIZEOF_INT)) end
 local function ReadUShort(f) return toUShort(f:Read(SIZEOF_SHORT)) end
 
+function ParseWNavFile()
+	local navFile = file.Read("wnavdata/"..game.GetMap()..".txt")
+
+	if (navFile) then
+		Nodes = util.JSONToTable(navFile)
+		parsed_wnav = true
+	end
+end
+
 --Taken from nodegraph addon - thx
 --Types:
 --1 = ?
@@ -66,39 +77,44 @@ local function ReadUShort(f) return toUShort(f:Read(SIZEOF_SHORT)) end
 --3 = playerspawns
 --4 = wall climbers
 function ParseFile()
-	if foundain then
+	if found_ain then
 		return
 	end
 
-	f = file.Open("maps/graphs/"..game.GetMap()..".ain","rb","GAME")
-	if(!f) then
+	local ainFile = file.Open("maps/graphs/"..game.GetMap()..".ain","rb","GAME")
+	
+	if (!ainFile) then
 		return
 	end
 
 	found_ain = true
-	local ainet_ver = ReadInt(f)
-	local map_ver = ReadInt(f)
+
+	local ainet_ver = ReadInt(ainFile)
+	local map_ver = ReadInt(ainFile)
+	
 	if(ainet_ver != AINET_VERSION_NUMBER) then
 		MsgN("Unknown graph file")
 		return
 	end
 
-	local numNodes = ReadInt(f)
+	local numNodes = ReadInt(ainFile)
+	
 	if(numNodes < 0) then
+		ainFile:Close()
 		MsgN("Graph file has an unexpected amount of nodes")
 		return
 	end
 
 	for i = 1,numNodes do
-		local v = Vector(f:ReadFloat(),f:ReadFloat(),f:ReadFloat())
-		local yaw = f:ReadFloat()
+		local v = Vector(ainFile:ReadFloat(), ainFile:ReadFloat(), ainFile:ReadFloat())
+		local yaw = ainFile:ReadFloat()
 		local flOffsets = {}
 		for i = 1,NUM_HULLS do
-			flOffsets[i] = f:ReadFloat()
+			flOffsets[i] = ainFile:ReadFloat()
 		end
-		local nodetype = f:ReadByte()
-		local nodeinfo = ReadUShort(f)
-		local zone = f:ReadShort()
+		local nodetype = ainFile:ReadByte()
+		local nodeinfo = ReadUShort(ainFile)
+		local zone = ainFile:ReadShort()
 
 		if nodetype == 4 then
 			continue
@@ -117,8 +133,10 @@ function ParseFile()
 			numlinks = 0
 		}
 
-		table.insert(Nodes,node)
+		table.insert(Nodes, node.pos)
 	end
+
+	ainFile:Close()
 end
 
 hook.Add( "EntityTakeDamage", "SetDamageDealt", function(ent, dmginfo)
@@ -230,7 +248,7 @@ hook.Add( "OnNPCKilled", "AddExp", function(npc, attacker, inflictor )
 end )
 
 hook.Add("EntityRemoved", "Entity_Removed_zinv", function(ent)
-	if spawnedEnemies[ent:EntIndex()] then
+	if spawnedEnemies && spawnedEnemies[ent:EntIndex()] then
 		spawnedEnemies[ent:EntIndex()] = nil
 		liveEnemiesCount = liveEnemiesCount - 1
 	end
@@ -414,8 +432,8 @@ function SpawnEnemy(pos)
 						end
 					end
 				end)
-				local toGround = util.QuickTrace(ent:GetPos() + ent:GetUp() * 10, ent:GetUp() * -1000, ent)
-				ent:SetPos(toGround.HitPos)
+				//local toGround = util.QuickTrace(ent:GetPos() + ent:GetUp() * 10, ent:GetUp() * -1000, ent)
+				//ent:SetPos(toGround.HitPos)
 			end
 			if (npc == "npc_helicopter") then
 				ent.health = ent:GetMaxHealth()
@@ -458,6 +476,28 @@ function SpawnEnemy(pos)
 end
 
 function CleanNPCs()
+	/*
+	--Check enemy
+	for k, v in pairs(enemies) do
+		local closest = 99999
+		local closest_plr = NULL
+		local enemy_pos = v:GetPos()
+
+		for k2, v2 in pairs(player.GetAll()) do
+			local dist = enemy_pos:Distance(v2:GetPos())
+
+			if dist < closest then
+				closest_plr = v2
+				closest = dist
+			end
+		end
+
+		if closest > MAX_DIST * 1.25 then
+			table.RemoveByValue(enemies, v)
+			v:Remove()
+		end
+	end
+	*/
 	local maxcycle = #player.GetAll()
 	for k, v in pairs (ents.FindByClass("npc_*")) do
 		local inactive = true
@@ -477,8 +517,9 @@ function CleanNPCs()
 end
 
 function SetNPCsEnemy()
-	if (targetCoroutine != nil && coroutine.status(targetCoroutine) != "dead")
-		return;
+	if !CHASE_PLAYERS || (targetCoroutine != nil && coroutine.status(targetCoroutine) != "dead") then
+		return
+	end
 
 	targetCoroutine = coroutine.create(function()
 		local npcs = ents.GetAll()
@@ -514,7 +555,7 @@ function SetNPCsEnemy()
 					-- then reuse it for other NPCs
 					local plyPos = ply:GetPos()
 
-					if (spawnedEnemies[npc:EntIndex()] && ent.type != "medic") then						
+					if (spawnedEnemies[npc:EntIndex()] && npc.type != "medic") then						
 						-- Use DistToSqr for distance comparisons since
 						-- it's more efficient than Distance, and the
 						-- non-squared distance isn't needed for anything
@@ -562,112 +603,111 @@ function SetNPCsEnemy()
 	//print("running target coroutine " .. coroutine.status(targetCoroutine) .. " / " .. tostring(resume) .. " | " .. tostring(args))
 end
 
+local function MapGen()
+    --navmesh.IsGenerating()
+    --gmod.GetGamemode():SetStatus(-2)
+
+    local SpawnPoints = ents.FindByClass( "info_player_*" )
+    local tab = {"ins_spawnpoint","aoc_spawnpoint","dys_spawn_point","diprip_start_team_blue","diprip_start_team_red"}
+    for I=1,#tab do
+        table.Merge( SpawnPoints, ents.FindByClass( tab[I] ) )  
+    end
+    for I=1,#SpawnPoints do
+        navmesh.AddWalkableSeed( SpawnPoints[I]:GetPos(), SpawnPoints[I]:GetAngles():Up() )
+    end
+
+    navmesh.BeginGeneration()
+    PrintMessage(3,"[GAMEMODE] Generating navmesh. This will take some time.")
+
+    timer.Create("MapNavGen", 1, 0, function()
+        if !navmesh.IsGenerating() then
+            -- Restart
+            PrintMessage( 3, "[GAMEMODE] Restarting ...")
+            timer.Destroy("MapNavGen")
+            RunConsoleCommand( "changelevel", game.GetMap() )
+        end
+    end)
+end
+
 function AutoSpawnNPCs()
 	if (pvpmode >= 1) then
 		return
 	end
 
+	if table.Count(player.GetAll()) <= 0 || liveEnemiesCount >= MAX_SPAWNS then
+		return
+	end
+
 	local status, err = pcall( function()
-	local valid_nodes = {}
-	local enemies = {}
-
-	if table.Count(player.GetAll()) <= 0 then
-		return
-	end
-	
-	if !found_ain then
-		ParseFile()
-	end
-
-	if !Nodes or table.Count(Nodes) < 1 then --TODO: use navmesh.CreateNavArea( Vector corner, Vector opposite_corner )
-		print("No info_node(s) in map! NPCs will not spawn.")
-		return
-	end
-
-	if table.Count(Nodes) <= 35 then
-		print("NPCs may not spawn well on this map, please try another.")
-	end
-
-	for ent_index, _ in pairs(spawnedEnemies) do
-		if !IsValid(Entity(ent_index)) then
-			spawnedEnemies[ent_index] = nil
-			liveEnemiesCount = liveEnemiesCount - 1
-		else
-			table.insert(enemies, Entity(ent_index))
+		local valid_nodes = {}		
+		local nodePositions = {}
+		local enemies = {}
+		
+		if !found_ain then
+			ParseFile()
 		end
-	end
 
-	--Check enemy
-	for k, v in pairs(enemies) do
-		local closest = 99999
-		local closest_plr = NULL
-		local enemy_pos = v:GetPos()
+		if !parsed_wnav && (!Nodes || table.Count(Nodes) < 1) then --TODO: use navmesh.CreateNavArea( Vector corner, Vector opposite_corner )
+			ParseWNavFile()
+		end
 
-		for k2, v2 in pairs(player.GetAll()) do
-			local dist = enemy_pos:Distance(v2:GetPos())
+		if !Nodes || table.Count(Nodes) < 1 then --TODO: use navmesh.CreateNavArea( Vector corner, Vector opposite_corner )
+			print("No info_node(s) or wnav_nodes in map! NPCs will not spawn.")
+			return
+		end
 
-			if dist < closest then
-				closest_plr = v2
-				closest = dist
+		if table.Count(Nodes) <= 35 then
+			print("NPCs may not spawn well on this map, please try another.")
+		end
+
+		for ent_index, _ in pairs(spawnedEnemies) do
+			if !IsValid(Entity(ent_index)) then
+				spawnedEnemies[ent_index] = nil
+				liveEnemiesCount = liveEnemiesCount - 1
+			else
+				table.insert(enemies, Entity(ent_index))
 			end
 		end
 
-		if closest > MAX_DIST * 1.25 then
-			table.RemoveByValue(enemies, v)
-			v:Remove()
-		end
-		if v && IsValid(v) && CHASE_PLAYERS then
-			v:SetLastPosition(closest_plr:GetPos())
-			v:SetTarget(closest_plr)
-			if !v:IsCurrentSchedule(SCHED_FORCED_GO_RUN) then
-				v:SetSchedule(SCHED_FORCED_GO_RUN)
+		--Get valid nodes
+		for k, nodePos in pairs(Nodes) do
+			local valid = false
+
+			for k2, v2 in pairs(player.GetAll()) do
+				local dist = nodePos:Distance(v2:GetPos())
+
+				if dist <= MIN_DIST then
+					valid = false
+					break
+				elseif dist < MAX_DIST then
+					valid = true
+				end
 			end
-		end
-	end
 
-	if liveEnemiesCount >= MAX_SPAWNS then
-		return
-	end
-
-	--Get valid nodes
-	for k, v in pairs(Nodes) do
-		local valid = false
-
-		for k2, v2 in pairs(player.GetAll()) do
-			local dist = v["pos"]:Distance(v2:GetPos())
-
-			if dist <= MIN_DIST then
-				valid = false
-				break
-			elseif dist < MAX_DIST then
-				valid = true
+			if !valid then
+				continue
 			end
-		end
 
-		if !valid then
-			continue
-		end
+			for k2, v2 in pairs(enemies) do
+				local dist = nodePos:Distance(v2:GetPos())
+				if dist <= 100 then
+					valid = false
+					break
+				end
+			end
 
-		for k2, v2 in pairs(enemies) do
-			local dist = v["pos"]:Distance(v2:GetPos())
-			if dist <= 100 then
-				valid = false
-				break
+			valid = valid && !CanSeePlayers(nodePos)
+
+			if valid then
+				table.insert(valid_nodes, nodePos)
 			end
 		end
 
-		valid = valid && !CanSeePlayers(v["pos"])
-
-		if valid then
-			table.insert(valid_nodes, v["pos"])
+		--Spawn enemies if not enough
+		if table.Count(valid_nodes) > 0 then
+			SpawnEnemiesAsync(valid_nodes)
 		end
-	end
-
-	--Spawn enemies if not enough
-	if table.Count(valid_nodes) > 0 then
-		SpawnEnemiesAsync(valid_nodes)
-	end
-	end) 
+	end)
 
 	if !status then
 		print(err)
@@ -675,6 +715,10 @@ function AutoSpawnNPCs()
 end
 
 function SpawnEnemiesAsync(nodes)
+	if nodeCoroutine != nil && coroutine.status(nodeCoroutine) != "dead" then
+		return
+	end
+
 	MAX_SPAWNS = 10 + 15 * #player.GetAll()
 
 	nodeCoroutine = coroutine.create(function()	

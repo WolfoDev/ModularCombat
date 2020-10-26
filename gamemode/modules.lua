@@ -12,7 +12,7 @@ local function OnMinionDeath(ent, minion, delay, hookType, hookName)
     if ent == minion then
 	    timer.Simple( delay, function()
             local hooks = hook.GetTable()
-                        
+
             if (type(hooks[hookType]) == "table" && type(hooks[hookType][hookName]) == "function") then
                 if not IsValid( ent ) then
                     CURRENT_MINIONS = CURRENT_MINIONS - 1
@@ -470,7 +470,7 @@ MC.HealingBomb = function(ply, modId, modLv, pos)
     local result = false
     local size = 300
     //local pos = ply:GetPos()
-    local time = 5
+    local time = 20
     local hitDelay = 0.5
     local hits = time / hitDelay
 
@@ -1832,7 +1832,7 @@ MC.modules = {
         description = "Increases your <b>total AUX</b> energy and its <b>regeneration</b> capabilities.",
         type = "Passive",
         upgrade = "AUX",
-        upgrades = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100},
+        upgrades = {30, 40, 50, 70, 90, 110, 130, 150, 170, 200},
         parseUpgrade = function(value) return (value) .. "" end,
         drain = 0,
         cooldown = 0,
@@ -2002,7 +2002,7 @@ MC.modules = {
         description = "Shoot a <b>Laser Beam</b> that lasts <b>4 seconds</b>, inflicting <b>burn status</b> to all enemies in its way for <b>8 seconds</b>. \n<i>Total damage is based on module's level.</i>",
         type = "Active - AOE",
         upgrade = "Damage",
-        upgrades = {20, 22, 24, 26, 29, 32, 35, 38, 41, 45},
+        upgrades = {30, 32, 34, 36, 39, 42, 45, 50, 55, 60},
         parseUpgrade = function(value) return (value * 10) .. "" end,
         drain = 40,
         cooldown = 13,
@@ -2033,13 +2033,13 @@ MC.modules = {
     {
         name = "Healing Bomb",
         category = "Utilities",
-        description = "Throw a healing capsule to the ground. Upon impact, creates a large area which <b>refills a certain amount of Health</b> to all nearby allies within <b>5 seconds</b>. \n<i>Health healed is based on module's level.",
+        description = "Throw a healing capsule to the ground. Upon impact, creates a large area which <b>refills a certain amount of Health</b> to all nearby allies within <b>20 seconds</b>. \n<i>Health healed is based on module's level.",
         type = "Active - AOE",
         upgrade = "Duration",
-        upgrades = {0.25, 0.28, 0.31, 0.34, 0.38, 0.42, 0.46, 0.5, 0.55, 0.6},
+        upgrades = {0.35, 0.38, 0.41, 0.44, 0.48, 0.52, 0.56, 0.6, 0.65, 0.7},
         parseUpgrade = function(value) return (value * 100) .. "%" end,
         drain = 90,
-        cooldown = 20,
+        cooldown = 35,
         casttime = 0,
         cost = 3,
         icon = "health-capsule",

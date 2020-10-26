@@ -106,7 +106,7 @@ util.AddNetworkString( "VoteSV" )
 	"music/HL2_song19.mp3"
 }*/
 pvpmode = 0
-local music = {"music/HL2_song26_trainstation2.mp3", "music/HL2_song26_trainstation1.mp3"}
+local music = {"music/HL2_song27_trainstation2.mp3", "music/HL2_song26_trainstation1.mp3"}
 
 
 local function SwitchProfile(ply, profile)
@@ -230,11 +230,11 @@ local function RandomPlayersSpawn()
 		for k, v in pairs(Nodes) do
 			local canSpawn = true
 			for _, other in pairs (spawned) do
-				canSpawn = canSpawn && (v["pos"]:Distance(other:GetPos()) >= MIN_DIST)
+				canSpawn = canSpawn && (v:Distance(other:GetPos()) >= MIN_DIST)
 			end
 			if (canSpawn) then
 				table.insert(spawned, ply)
-				ply:SetPos(v["pos"])
+				ply:SetPos(v)
 				break
 			end
 		end
@@ -246,10 +246,10 @@ local function RandomPlayerSpawn(ply)
 		local canSpawn = true
 		for _, other in pairs (player.GetAll()) do
 			if (other == ply) then continue end
-			canSpawn = canSpawn && (v["pos"]:Distance(other:GetPos()) >= MIN_DIST)
+			canSpawn = canSpawn && (v:Distance(other:GetPos()) >= MIN_DIST)
 		end
 		if (canSpawn) then
-			ply:SetPos(v["pos"])
+			ply:SetPos(v)
 			break
 		end
 	end
@@ -269,6 +269,7 @@ local function EverySpawn(ply)
 	ply:GiveAmmo( 30, "ar2", true )
 	ply:SetHealth(ply:HealthFormula())
 	ply:SetModel("models/player/soldier_stripped.mdl")
+	
 	if (pvpmode == 0) then
 		ply:SetTeam(0)
 		ply.immortal = true
@@ -813,8 +814,9 @@ end
    Name: gamemode:PlayerNoClip( ply, active )
 -----------------------------------------------------------]]
 function GM:PlayerNoClip( ply, active )
-	ply:UseModule()
-	return false
+	return true
+	//ply:UseModule()
+	//return false
 end
 
 --[[---------------------------------------------------------

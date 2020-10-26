@@ -687,7 +687,7 @@ hook.Add( "HUDPaint", "DrawModuleBox", function()
 	local cd = modulesCooldowns[ply.useModule]
 	if (mod != nil && mod.execute != nil && modulesLevels[ply.useModule] != nil) then
 		local x, y, w, h = ValueToScreenRect(16, 400, 50, 50);
-		x = ScrW() / 2
+		x = (ScrW() * 0.5) - (w * 0.5)
 
 		draw.RoundedBox( 8, x, y, w, h, Color( 0, 0, 0, 80 ) )
 		
