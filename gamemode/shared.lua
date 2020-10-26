@@ -67,7 +67,7 @@ function meta:StaminaFormula()
 end
 
 function meta:StaminaDrainFormula()
-	local drain = 2.5
+	local drain = 1
 	return drain
 end
 

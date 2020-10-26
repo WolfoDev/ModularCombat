@@ -814,9 +814,8 @@ end
    Name: gamemode:PlayerNoClip( ply, active )
 -----------------------------------------------------------]]
 function GM:PlayerNoClip( ply, active )
-	return true
-	//ply:UseModule()
-	//return false
+	ply:UseModule()
+	return false
 end
 
 --[[---------------------------------------------------------
