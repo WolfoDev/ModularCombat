@@ -590,11 +590,12 @@ function SetNPCsEnemy()
 					local result = npc:NavSetGoal( curPlyPos )
 					npc:SetSaveValue("m_vecLastPosition", curPlyPos)
 					npc:SetSchedule(SCHED_FORCED_GO)
-					npc:IdleSound()
+					npc:IdleSound()					
+					debugoverlay.Line(npc:GetPos(), curPlyPos, 1, Color(255, 255, 0), true) // groupColors[k]
 					//print(tostring(npc) .. ":NavSetGoal = " .. tostring(result))
 				end
 				
-				coroutine.wait(0.1)
+				coroutine.wait(0.02)
 			end
 		end
 	end)
